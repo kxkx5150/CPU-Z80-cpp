@@ -11,7 +11,8 @@ const int T_STATES_PER_INTERRUPT = 59659;
 class PC;
 class z80 {
   private:
-    PC *msx = nullptr;
+    PC      *msx   = nullptr;
+    uint64_t count = 0;
 
     uint8_t *memReadMap[4]{};
     uint8_t *rom[32]{};
@@ -65,6 +66,14 @@ class z80 {
     bool podeEscrever[4] = {false, false, false, true};
     bool showpc          = false;
 
+    bool           logcheck        = false;
+    bool           stepinfo        = false;
+    string         filename        = "log0.txt";
+    int            filecheck_start = 0;
+    int            filecheck_end   = 1000;
+    int            fileoffset      = 0;
+    vector<string> lines;
+
   public:
     z80(PC *_pc);
     ~z80();
@@ -73,6 +82,8 @@ class z80 {
     void    reset();
     void    load(std::vector<uint8_t> &bin, int idx, int offset, int size);
     uint8_t z80_interrupt();
+    void    dump(int opcode);
+    int     file_read();
 
     void     setF(uint8_t i);
     int8_t   bytef(uint8_t i);

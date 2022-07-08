@@ -1,7 +1,10 @@
 #include "z80.h"
+#include "PC.h"
 #include <cstdint>
 #include <cstdio>
-#include "PC.h"
+#include <fstream>
+#include <string>
+
 // #include "tms9918.h"
 
 z80::z80(PC *_pc)
@@ -15,6 +18,7 @@ z80::z80(PC *_pc)
         rom[i] = new uint8_t[8192]{0};
     }
     reset();
+    file_read();
 }
 z80::~z80()
 {
@@ -93,6 +97,115 @@ void z80::load(std::vector<uint8_t> &bin, int idx, int offset, int size)
         memReadMap[idx][i] = bin[i - offset];
     }
 }
+int z80::file_read()
+{
+    logcheck = true;
+    stepinfo = true;
+    filename = "log0.txt";
+
+    if (logcheck) {
+        string   line;
+        ifstream input_file(filename);
+        if (!input_file.is_open()) {
+            logcheck = false;
+            stepinfo = false;
+        }
+
+        while (getline(input_file, line)) {
+            lines.push_back(line);
+        }
+
+        input_file.close();
+    }
+    return EXIT_SUCCESS;
+}
+void z80::dump(int opcode)
+{
+    count++;
+
+    if (logcheck && filecheck_start <= count && count <= filecheck_end) {
+
+        char buf1[1000];
+        sprintf(buf1, "STEPS=%lu OPCODE=%d", count, opcode);
+        // printf("%s\n", buf1);
+
+        char buf2[1000];
+        sprintf(buf2, "A=%02X B=%02X C=%02X D=%02X", _A, _B, _C, _D);
+        // printf("%s\n", buf2);
+
+        char buf3[1000];
+        sprintf(buf3, "E=%02X H=%02X L=%02X", _E, _H, _L);
+        // printf("%s\n", buf3);
+
+        char buf4[1000];
+        sprintf(buf4, "fS=%d fZ=%d f5=%d fH=%d f3=%d fPV=%d fN=%d fC=%d", fS, fZ, f5, fH, f3, fPV, fN, fC);
+        // printf("%s\n", buf4);
+
+        char buf5[1000];
+        sprintf(buf5, "AF=%04X HL=%04X BC=%04X DE=%04X", _AF_, _HL_, _BC_, _DE_);
+        // printf("%s\n", buf5);
+
+        char buf6[1000];
+        sprintf(buf6, "IX=%04X IY=%04X ID=%04X", _IX, _IY, _ID);
+        // printf("%s\n", buf6);
+
+        char buf7[1000];
+        sprintf(buf7, "SP=%04X PC=%04X", _SP, _PC);
+        // printf("%s\n", buf7);
+
+        char buf8[1000];
+        sprintf(buf8, "I=%04X R=%04X R7=%04X IM=%04X", _I, _R, _R7, _IM);
+        // printf("%s\n", buf8);
+
+        char buf9[1000];
+        sprintf(buf9, "IFF1=%d IFF2=%d", _IFF1, _IFF2);
+        // printf("%s\n", buf9);
+
+        char buf10[1000];
+        sprintf(buf10, "PPA=%04X PPC=%04X PPD=%04X", PPIPortA, PPIPortC, PPIPortD);
+        // printf("%s\n", buf10);
+
+        if (stepinfo) {
+            printf("count : %lu\n", count);
+            printf("%s\n", lines[count - 1 - fileoffset].c_str());
+            printf("%s %s %s %s %s %s %s %s %s %s\n", buf1, buf2, buf3, buf4, buf5, buf6, buf7, buf8, buf9, buf10);
+        }
+
+        if (count < filecheck_end) {
+            int len = lines[0].size() + 10;
+
+            char *sbf = new char[len];
+            sprintf(sbf, "%s", lines[count - 1 - fileoffset].c_str());
+            std::string s = sbf;
+
+            char *tbf = new char[len];
+            sprintf(tbf, "%s %s %s %s %s %s %s %s %s %s", buf1, buf2, buf3, buf4, buf5, buf6, buf7, buf8, buf9, buf10);
+            std::string t = tbf;
+
+            if (std::equal(t.begin(), t.end(), s.begin())) {
+                // printf("ok !\n");
+            } else {
+                printf("\n\n\n***************\n");
+                printf("*** Error ! ***\n");
+                printf("***************\n\n\n");
+
+                printf("count : %lu\n", count);
+                printf("OK : %s\n", lines[count - 1 - fileoffset].c_str());
+                printf("NG : %s %s %s %s %s %s %s %s %s %s\n\n", buf1, buf2, buf3, buf4, buf5, buf6, buf7, buf8, buf9,
+                       buf10);
+                exit(1);
+            }
+
+            delete[] sbf;
+            delete[] tbf;
+        } else {
+            printf("\n\n\n\n\n-- Compare OK ! ---\n");
+            // printf("count : %d\n\n", count);
+            printf("\n\n\n\n\n\n");
+            exit(1);
+        }
+    }
+}
 void z80::run()
 {
     int64_t  i      = -(T_STATES_PER_INTERRUPT - z80_interrupt());
@@ -103,6 +216,11 @@ void z80::run()
     while (i < 0) {
         _R += 1;
         opcode = readMem(_PC++);
+        dump(opcode);
+
+        if (count == 100) {
+            printf(" ");
+        }
 
         switch (opcode) {
             case 0:
