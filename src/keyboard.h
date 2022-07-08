@@ -4,11 +4,11 @@
 class KBD {
 
   public:
-    int state[9] = {};
+    int state[100] = {};
 
     KBD()
     {
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 100; i++) {
             state[i] = 255;
         }
     }

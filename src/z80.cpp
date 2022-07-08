@@ -12,10 +12,10 @@ z80::z80(PC *_pc)
     msx = _pc;
 
     for (int i = 0; i < 4; i++) {
-        memReadMap[i] = new uint8_t[65536]{255};
+        memReadMap[i] = new int[65536]{255};
     }
     for (int i = 0; i < 32; i++) {
-        rom[i] = new uint8_t[8192]{0};
+        rom[i] = new int[8192]{0};
     }
     reset();
     file_read();
@@ -55,7 +55,7 @@ void z80::reset()
     setDE(0);
     setHL(0);
 
-    uint16_t i = HL();
+    int i = HL();
     setHL(_HL_);
     _HL_ = i;
     i    = DE();
@@ -65,10 +65,10 @@ void z80::reset()
     setBC(_BC_);
     _BC_ = i;
 
-    uint16_t f = ((fS ? 128 : 0) | (fZ ? 64 : 0) | (f5 ? 32 : 0) | (fH ? 16 : 0) | (f3 ? 8 : 0) | (fPV ? 4 : 0) |
-                  (fN ? 2 : 0) | (fC ? 1 : 0));
-    i          = _A << 8 | f;
-    _A         = (_AF_ >> 8);
+    int f = ((fS ? 128 : 0) | (fZ ? 64 : 0) | (f5 ? 32 : 0) | (fH ? 16 : 0) | (f3 ? 8 : 0) | (fPV ? 4 : 0) |
+             (fN ? 2 : 0) | (fC ? 1 : 0));
+    i     = _A << 8 | f;
+    _A    = (_AF_ >> 8);
     setF(_AF_ & 0xff);
     _AF_ = i;
     _A   = 0;
@@ -91,7 +91,7 @@ void z80::reset()
     for (i = 0; i < 256; i++)
         portos[i] = -1;
 }
-void z80::load(std::vector<uint8_t> &bin, int idx, int offset, int size)
+void z80::load(std::vector<int> &bin, int idx, int offset, int size)
 {
     for (int i = offset; i < size; i++) {
         memReadMap[idx][i] = bin[i - offset];
@@ -99,9 +99,10 @@ void z80::load(std::vector<uint8_t> &bin, int idx, int offset, int size)
 }
 int z80::file_read()
 {
-    logcheck = true;
-    stepinfo = true;
-    filename = "log0.txt";
+    logcheck      = true;
+    stepinfo      = false;
+    filename      = "logs/log0.txt";
+    filecheck_end = 10000;
 
     if (logcheck) {
         string   line;
@@ -116,17 +117,30 @@ int z80::file_read()
         }
 
         input_file.close();
+
+        // if (filename == "logs/log0.txt") {
+        //     filecheck_start = 1;
+        //     filecheck_end   = 1000000;
+        // } else if (filename == "logs/log1.txt") {
+        //     filecheck_start = 1000001;
+        //     filecheck_end   = 2000000;
+        //     fileoffset      = 1000000;
+        // } else if (filename == "logs/log2.txt") {
+        //     filecheck_start = 2000001;
+        //     filecheck_end   = 3000000;
+        //     fileoffset      = 2000000;
+        // }
     }
     return EXIT_SUCCESS;
 }
-void z80::dump(int opcode)
+void z80::dump(int opcode, int i)
 {
     count++;
 
     if (logcheck && filecheck_start <= count && count <= filecheck_end) {
 
         char buf1[1000];
-        sprintf(buf1, "STEPS=%lu OPCODE=%d", count, opcode);
+        sprintf(buf1, "i=%d STEPS=%lu OPCODE=%d", i, count, opcode);
         // printf("%s\n", buf1);
 
         char buf2[1000];
@@ -154,7 +168,7 @@ void z80::dump(int opcode)
         // printf("%s\n", buf7);
 
         char buf8[1000];
-        sprintf(buf8, "I=%04X R=%04X R7=%04X IM=%04X", _I, _R, _R7, _IM);
+        sprintf(buf8, "I=%04X R=%08X R7=%04X IM=%04X", _I, _R, _R7, _IM);
         // printf("%s\n", buf8);
 
         char buf9[1000];
@@ -200,7 +214,7 @@ void z80::dump(int opcode)
             delete[] tbf;
         } else {
             printf("\n\n\n\n\n-- Compare OK ! ---\n");
-            // printf("count : %d\n\n", count);
+            printf("count : %lu\n\n", count);
             printf("\n\n\n\n\n\n");
             exit(1);
         }
@@ -208,31 +222,31 @@ void z80::dump(int opcode)
 }
 void z80::run()
 {
-    int64_t  i      = -(T_STATES_PER_INTERRUPT - z80_interrupt());
-    uint16_t i_2_   = 0;
-    uint16_t i_3_   = 0;
-    uint8_t  opcode = 0;
+    int i      = -(T_STATES_PER_INTERRUPT - z80_interrupt());
+    int i_2_   = 0;
+    int i_3_   = 0;
+    int opcode = 0;
 
     while (i < 0) {
         _R += 1;
         opcode = readMem(_PC++);
-        dump(opcode);
 
-        if (count == 100) {
+        if (count == 263551) {
             printf(" ");
         }
+        dump(opcode, i);
 
         switch (opcode) {
             case 0:
                 i += 4;
                 break;
             case 8: {
-                uint16_t f = ((fS ? 128 : 0) | (fZ ? 64 : 0) | (f5 ? 32 : 0) | (fH ? 16 : 0) | (f3 ? 8 : 0) |
-                              (fPV ? 4 : 0) | (fN ? 2 : 0) | (fC ? 1 : 0));
-                uint16_t i = _A << 8 | f;
-                _A         = (_AF_ >> 8);
+                int f = ((fS ? 128 : 0) | (fZ ? 64 : 0) | (f5 ? 32 : 0) | (fH ? 16 : 0) | (f3 ? 8 : 0) | (fPV ? 4 : 0) |
+                         (fN ? 2 : 0) | (fC ? 1 : 0));
+                int ii = _A << 8 | f;
+                _A     = (_AF_ >> 8);
                 setF(_AF_ & 0xff);
-                _AF_ = i;
+                _AF_ = ii;
                 i += 4;
                 break;
             }
@@ -494,8 +508,8 @@ void z80::run()
                 i += 7;
                 break;
             case 7: {
-                uint8_t ii  = _A;
-                bool    flg = (ii & 0x80) != 0;
+                int  ii  = _A;
+                bool flg = (ii & 0x80) != 0;
                 if (flg)
                     ii = ii << 1 | 0x1;
                 else
@@ -510,8 +524,8 @@ void z80::run()
                 i += 4;
             } break;
             case 15: {
-                uint8_t ii  = _A;
-                bool    flg = (ii & 0x1) != 0;
+                int  ii  = _A;
+                bool flg = (ii & 0x1) != 0;
                 if (flg)
                     ii = ii >> 1 | 0x80;
                 else
@@ -525,8 +539,8 @@ void z80::run()
                 i += 4;
             } break;
             case 23: {
-                uint8_t ii  = _A;
-                bool    flg = (ii & 0x80) != 0;
+                int  ii  = _A;
+                bool flg = (ii & 0x80) != 0;
                 if (fC)
                     ii = ii << 1 | 0x1;
                 else
@@ -541,8 +555,8 @@ void z80::run()
                 i += 4;
             } break;
             case 31: {
-                uint8_t ii  = _A;
-                bool    flg = (ii & 0x1) != 0;
+                int  ii  = _A;
+                bool flg = (ii & 0x1) != 0;
                 if (fC)
                     ii = ii >> 1 | 0x80;
                 else
@@ -556,9 +570,9 @@ void z80::run()
                 i += 4;
             } break;
             case 39: {
-                uint8_t ii    = _A;
-                uint8_t i_20_ = 0;
-                bool    flg   = fC;
+                int  ii    = _A;
+                int  i_20_ = 0;
+                bool flg   = fC;
                 if (fH || (ii & 0xf) > 9)
                     i_20_ |= 0x6;
                 if (flg || ii > 159 || ii > 143 && (ii & 0xf) > 9)
@@ -575,29 +589,29 @@ void z80::run()
                 i += 4;
             } break;
             case 47: {
-                uint8_t ii = _A ^ 0xff;
-                f3         = ((_A & 0x8) != 0);
-                f5         = ((_A & 0x20) != 0);
-                fH         = (true);
-                fN         = (true);
-                _A         = (ii);
+                int ii = _A ^ 0xff;
+                f3     = ((_A & 0x8) != 0);
+                f5     = ((_A & 0x20) != 0);
+                fH     = (true);
+                fN     = (true);
+                _A     = (ii);
                 i += 4;
             } break;
             case 55: {
-                uint8_t ii = _A;
-                f3         = ((ii & 0x8) != 0);
-                f5         = ((ii & 0x20) != 0);
-                fN         = (false);
-                fH         = (false);
-                fC         = (true);
+                int ii = _A;
+                f3     = ((ii & 0x8) != 0);
+                f5     = ((ii & 0x20) != 0);
+                fN     = (false);
+                fH     = (false);
+                fC     = (true);
                 i += 4;
             } break;
             case 63: {
-                uint8_t ii = _A;
-                f3         = ((ii & 0x8) != 0);
-                f5         = ((ii & 0x20) != 0);
-                fN         = (false);
-                fC         = (!fC);
+                int ii = _A;
+                f3     = ((ii & 0x8) != 0);
+                f5     = ((ii & 0x20) != 0);
+                fN     = (false);
+                fC     = (!fC);
                 i += 4;
             } break;
             case 64:
@@ -677,7 +691,7 @@ void z80::run()
                 _D = (_E);
                 i += 4;
                 break;
-                // case 84:
+            case 84:
                 _D = (_H);
                 i += 4;
                 break;
@@ -814,6 +828,7 @@ void z80::run()
                 i_2_ = (-i - 1) / 4 + 1;
                 i += i_2_ * 4;
                 _R += (i_2_ - 1);
+                _R &= 0xffff;
                 break;
             }
             case 119:
@@ -1176,7 +1191,7 @@ void z80::run()
                 i += 10;
                 break;
             case 217: {
-                uint16_t ii = HL();
+                int ii = HL();
                 setHL(_HL_);
                 _HL_ = ii;
                 ii   = DE();
@@ -1196,9 +1211,9 @@ void z80::run()
                 i += 4;
                 break;
             case 241: {
-                uint16_t ii = popw();
-                _A          = (i >> 8);
-                setF(i & 0xff);
+                int ii = popw();
+                _A     = (ii >> 8);
+                setF(ii & 0xff);
                 i += 10;
             } break;
             case 249:
@@ -1266,7 +1281,7 @@ void z80::run()
                 i += 10;
                 break;
             case 203: {
-                uint16_t ii = HL();
+                int ii = HL();
                 _R += (1);
                 switch (readMem(_PC++)) {
                     case 0:
@@ -2491,8 +2506,8 @@ void z80::run()
                     _ID = _IY;
                 }
                 {
-                    uint16_t ii;
-                    uint16_t ii2;
+                    int ii;
+                    int ii2;
                     _R += (1);
                     switch (readMem(_PC++)) {
                         case 0:
@@ -3866,8 +3881,8 @@ void z80::run()
                 i += 11;
                 break;
             case 237: {
-                uint16_t ii2;
-                uint16_t ii3;
+                int ii2;
+                int ii3;
                 _R += (1);
                 switch (readMem(_PC++)) {
                     case 0:
@@ -4121,8 +4136,8 @@ void z80::run()
                     case 108:
                     case 116:
                     case 124: {
-                        uint8_t ii = _A;
-                        _A         = (0);
+                        int ii = _A;
+                        _A     = (0);
                         sub_a(ii);
                         i += 8;
                     }
@@ -4169,37 +4184,37 @@ void z80::run()
                         i += 9;
                         goto EXEC_ED;
                     case 87: {
-                        uint8_t ii = _I;
-                        fS         = ((ii & 0x80) != 0);
-                        f3         = ((ii & 0x8) != 0);
-                        f5         = ((ii & 0x20) != 0);
-                        fZ         = (ii == 0);
-                        fPV        = (_IFF2);
-                        fH         = (false);
-                        fN         = (false);
-                        _A         = (ii);
+                        int ii = _I;
+                        fS     = ((ii & 0x80) != 0);
+                        f3     = ((ii & 0x8) != 0);
+                        f5     = ((ii & 0x20) != 0);
+                        fZ     = (ii == 0);
+                        fPV    = (_IFF2);
+                        fH     = (false);
+                        fN     = (false);
+                        _A     = (ii);
                         i += 9;
                     }
                         goto EXEC_ED;
                     case 95: {
-                        uint8_t ii = _R & 0x7f | _R7;
-                        fS         = ((ii & 0x80) != 0);
-                        f3         = ((ii & 0x8) != 0);
-                        f5         = ((ii & 0x20) != 0);
-                        fZ         = (ii == 0);
-                        fPV        = (_IFF2);
-                        fH         = (false);
-                        fN         = (false);
-                        _A         = (ii);
+                        int ii = _R & 0x7f | _R7;
+                        fS     = ((ii & 0x80) != 0);
+                        f3     = ((ii & 0x8) != 0);
+                        f5     = ((ii & 0x20) != 0);
+                        fZ     = (ii == 0);
+                        fPV    = (_IFF2);
+                        fH     = (false);
+                        fN     = (false);
+                        _A     = (ii);
                         i += 9;
                     }
                         goto EXEC_ED;
                     case 103: {
-                        uint8_t  ii    = _A;
-                        uint16_t i_76_ = readMem(HL());
-                        uint16_t i_77_ = i_76_;
-                        i_76_          = i_76_ >> 4 | ii << 4;
-                        ii             = ii & 0xf0 | i_77_ & 0xf;
+                        int ii    = _A;
+                        int i_76_ = readMem(HL());
+                        int i_77_ = i_76_;
+                        i_76_     = i_76_ >> 4 | ii << 4;
+                        ii        = ii & 0xf0 | i_77_ & 0xf;
                         writeMem(HL(), i_76_);
                         fS  = ((ii & 0x80) != 0);
                         f3  = ((ii & 0x8) != 0);
@@ -4213,11 +4228,11 @@ void z80::run()
                     }
                         goto EXEC_ED;
                     case 111: {
-                        uint8_t  ii    = _A;
-                        uint16_t i_74_ = readMem(HL());
-                        uint16_t i_75_ = i_74_;
-                        i_74_          = i_74_ << 4 | ii & 0xf;
-                        ii             = ii & 0xf0 | i_75_ >> 4;
+                        int ii    = _A;
+                        int i_74_ = readMem(HL());
+                        int i_75_ = i_74_;
+                        i_74_     = i_74_ << 4 | ii & 0xf;
+                        ii        = ii & 0xf0 | i_75_ >> 4;
                         writeMem(HL(), i_74_ & 0xff);
                         fS  = ((ii & 0x80) != 0);
                         f3  = ((ii & 0x8) != 0);
@@ -4430,8 +4445,8 @@ void z80::run()
             EXEC_ED:;
             } break;
             case 245: {
-                uint16_t f = ((fS ? 128 : 0) | (fZ ? 64 : 0) | (f5 ? 32 : 0) | (fH ? 16 : 0) | (f3 ? 8 : 0) |
-                              (fPV ? 4 : 0) | (fN ? 2 : 0) | (fC ? 1 : 0));
+                int f = ((fS ? 128 : 0) | (fZ ? 64 : 0) | (f5 ? 32 : 0) | (fH ? 16 : 0) | (f3 ? 8 : 0) | (fPV ? 4 : 0) |
+                         (fN ? 2 : 0) | (fC ? 1 : 0));
                 pushw(_A << 8 | f);
                 i += 11;
             } break;
@@ -4510,7 +4525,7 @@ void z80::run()
     }
 }
 
-uint8_t z80::readMem(uint16_t address)
+int z80::readMem(int address)
 {
     if (!megarom) {
         return memReadMap[0x3 & (PPIPortA >> ((address & 0xc000) >> 13))][address];
@@ -4522,7 +4537,7 @@ uint8_t z80::readMem(uint16_t address)
     }
     return 0;
 }
-uint16_t z80::readMemWord(uint16_t address)
+int z80::readMemWord(int address)
 {
     if (!megarom) {
         return memReadMap[0x3 & (PPIPortA >> (((address + 1) & 0xc000) >> 13))][address + 1] << 8 |
@@ -4536,9 +4551,9 @@ uint16_t z80::readMemWord(uint16_t address)
                    memReadMap[0x3 & (PPIPortA >> ((address & 0xc000) >> 13))][address];
     }
 }
-void z80::writeMem(uint16_t address, uint8_t value)
+void z80::writeMem(int address, int value)
 {
-    uint16_t i = 0x3 & (PPIPortA >> ((address & 0xc000) >> 13));
+    int i = 0x3 & (PPIPortA >> ((address & 0xc000) >> 13));
 
     if (podeEscrever[i])
         memReadMap[i][address] = value & 0xff;
@@ -4590,9 +4605,9 @@ void z80::writeMem(uint16_t address, uint8_t value)
         }
     }
 }
-void z80::writeMemWord(uint32_t address, uint16_t value)
+void z80::writeMemWord(int address, int value)
 {
-    uint16_t i = 0x3 & (PPIPortA >> ((address & 0xc000) >> 13));
+    int i = 0x3 & (PPIPortA >> ((address & 0xc000) >> 13));
     if (podeEscrever[i]) {
         memReadMap[i][address] = value & 0xff;
         if (++address < 65535)
@@ -4686,7 +4701,7 @@ void z80::preparaMemoriaMegarom(string str)
             tipoMegarom = 3;
     }
 }
-void z80::setF(uint8_t i)
+void z80::setF(int i)
 {
     fS  = (i & 0x80) != 0;
     fZ  = (i & 0x40) != 0;
@@ -4697,49 +4712,49 @@ void z80::setF(uint8_t i)
     fN  = (i & 0x2) != 0;
     fC  = (i & 0x1) != 0;
 }
-int8_t z80::bytef(uint8_t i)
+int8_t z80::bytef(int i)
 {    // returns i between -128 to +127
     return ((i & 0x80) != 0) ? i - 256 : i;
 }
-void z80::setBC(uint16_t i)
+void z80::setBC(int i)
 {
     _B = (i >> 8);
     _C = (i & 0xff);
 }
-uint16_t z80::HL()
+int z80::HL()
 {
     return _H << 8 | _L;
 }
-uint16_t z80::BC()
+int z80::BC()
 {
     return _B << 8 | _C;
 }
-uint16_t z80::add16(uint16_t i, uint16_t i_9_)
+int z80::add16(int i, int i_9_)
 {
-    uint16_t i_10_ = i + i_9_;
-    uint16_t i_11_ = i_10_ & 0xffff;
-    f3             = ((i_11_ & 0x800) != 0);
-    f5             = ((i_11_ & 0x2000) != 0);
-    fC             = ((i_10_ & 0x10000) != 0);
-    fH             = (((i & 0xfff) + (i_9_ & 0xfff) & 0x1000) != 0);
-    fN             = (false);
+    int i_10_ = i + i_9_;
+    int i_11_ = i_10_ & 0xffff;
+    f3        = ((i_11_ & 0x800) != 0);
+    f5        = ((i_11_ & 0x2000) != 0);
+    fC        = ((i_10_ & 0x10000) != 0);
+    fH        = (((i & 0xfff) + (i_9_ & 0xfff) & 0x1000) != 0);
+    fN        = (false);
     return i_11_;
 }
-void z80::setHL(uint16_t i)
+void z80::setHL(int i)
 {
     _H = (i >> 8);
     _L = (i & 0xff);
 }
-void z80::setDE(uint16_t i)
+void z80::setDE(int i)
 {
     _D = (i >> 8);
     _E = (i & 0xff);
 }
-uint16_t z80::DE()
+int z80::DE()
 {
     return _D << 8 | _E;
 }
-uint8_t z80::inc8(uint8_t i)
+int z80::inc8(int i)
 {
     bool flg      = i == 127;
     bool bool_59_ = ((i & 0xf) + 1 & 0x10) != 0;
@@ -4753,7 +4768,7 @@ uint8_t z80::inc8(uint8_t i)
     fN            = (false);
     return i;
 }
-uint8_t z80::dec8(uint8_t i)
+int z80::dec8(int i)
 {
     bool flg      = i == 128;
     bool bool_21_ = ((i & 0xf) - 1 & 0x10) != 0;
@@ -4767,144 +4782,144 @@ uint8_t z80::dec8(uint8_t i)
     fN            = (true);
     return i;
 }
-void z80::sub_a(uint8_t i)
+void z80::sub_a(int i)
 {
-    uint8_t i_87_ = _A;
-    uint8_t i_88_ = i_87_ - i;
-    uint8_t i_89_ = i_88_ & 0xff;
-    fS            = ((i_89_ & 0x80) != 0);
-    f3            = ((i_89_ & 0x8) != 0);
-    f5            = ((i_89_ & 0x20) != 0);
-    fZ            = (i_89_ == 0);
-    fC            = ((i_88_ & 0x100) != 0);
-    fPV           = (((i_87_ ^ i) & (i_87_ ^ i_89_) & 0x80) != 0);
-    fH            = (((i_87_ & 0xf) - (i & 0xf) & 0x10) != 0);
-    fN            = (true);
-    _A            = (i_89_);
+    int i_87_ = _A;
+    int i_88_ = i_87_ - i;
+    int i_89_ = i_88_ & 0xff;
+    fS        = ((i_89_ & 0x80) != 0);
+    f3        = ((i_89_ & 0x8) != 0);
+    f5        = ((i_89_ & 0x20) != 0);
+    fZ        = (i_89_ == 0);
+    fC        = ((i_88_ & 0x100) != 0);
+    fPV       = (((i_87_ ^ i) & (i_87_ ^ i_89_) & 0x80) != 0);
+    fH        = (((i_87_ & 0xf) - (i & 0xf) & 0x10) != 0);
+    fN        = (true);
+    _A        = (i_89_);
 }
-void z80::add_a(uint8_t i)
+void z80::add_a(int i)
 {
-    uint8_t i_12_ = _A;
-    uint8_t i_13_ = i_12_ + i;
-    uint8_t i_14_ = i_13_ & 0xff;
-    fS            = ((i_14_ & 0x80) != 0);
-    f3            = ((i_14_ & 0x8) != 0);
-    f5            = ((i_14_ & 0x20) != 0);
-    fZ            = (i_14_ == 0);
-    fC            = ((i_13_ & 0x100) != 0);
-    fPV           = (((i_12_ ^ (i ^ 0xffffffff)) & (i_12_ ^ i_14_) & 0x80) != 0);
-    fH            = (((i_12_ & 0xf) + (i & 0xf) & 0x10) != 0);
-    fN            = (false);
-    _A            = (i_14_);
+    int i_12_ = _A;
+    int i_13_ = i_12_ + i;
+    int i_14_ = i_13_ & 0xff;
+    fS        = ((i_14_ & 0x80) != 0);
+    f3        = ((i_14_ & 0x8) != 0);
+    f5        = ((i_14_ & 0x20) != 0);
+    fZ        = (i_14_ == 0);
+    fC        = ((i_13_ & 0x100) != 0);
+    fPV       = (((i_12_ ^ (i ^ 0xffffffff)) & (i_12_ ^ i_14_) & 0x80) != 0);
+    fH        = (((i_12_ & 0xf) + (i & 0xf) & 0x10) != 0);
+    fN        = (false);
+    _A        = (i_14_);
 }
-void z80::adc_a(uint8_t i)
+void z80::adc_a(int i)
 {
-    uint8_t i_5_ = _A;
-    uint8_t i_6_ = fC ? 1 : 0;
-    uint8_t i_7_ = i_5_ + i + i_6_;
-    uint8_t i_8_ = i_7_ & 0xff;
-    fS           = ((i_8_ & 0x80) != 0);
-    f3           = ((i_8_ & 0x8) != 0);
-    f5           = ((i_8_ & 0x20) != 0);
-    fZ           = (i_8_ == 0);
-    fC           = ((i_7_ & 0x100) != 0);
-    fPV          = (((i_5_ ^ (i ^ 0xffffffff)) & (i_5_ ^ i_8_) & 0x80) != 0);
-    fH           = (((i_5_ & 0xf) + (i & 0xf) + i_6_ & 0x10) != 0);
-    fN           = (false);
-    _A           = (i_8_);
+    int i_5_ = _A;
+    int i_6_ = fC ? 1 : 0;
+    int i_7_ = i_5_ + i + i_6_;
+    int i_8_ = i_7_ & 0xff;
+    fS       = ((i_8_ & 0x80) != 0);
+    f3       = ((i_8_ & 0x8) != 0);
+    f5       = ((i_8_ & 0x20) != 0);
+    fZ       = (i_8_ == 0);
+    fC       = ((i_7_ & 0x100) != 0);
+    fPV      = (((i_5_ ^ (i ^ 0xffffffff)) & (i_5_ ^ i_8_) & 0x80) != 0);
+    fH       = (((i_5_ & 0xf) + (i & 0xf) + i_6_ & 0x10) != 0);
+    fN       = (false);
+    _A       = (i_8_);
 }
-void z80::sbc_a(uint8_t i)
+void z80::sbc_a(int i)
 {
-    uint8_t i_82_ = _A;
-    uint8_t i_83_ = fC ? 1 : 0;
-    uint8_t i_84_ = i_82_ - i - i_83_;
-    uint8_t i_85_ = i_84_ & 0xff;
-    fS            = ((i_85_ & 0x80) != 0);
-    f3            = ((i_85_ & 0x8) != 0);
-    f5            = ((i_85_ & 0x20) != 0);
-    fZ            = (i_85_ == 0);
-    fC            = ((i_84_ & 0x100) != 0);
-    fPV           = (((i_82_ ^ i) & (i_82_ ^ i_85_) & 0x80) != 0);
-    fH            = (((i_82_ & 0xf) - (i & 0xf) - i_83_ & 0x10) != 0);
-    fN            = (true);
-    _A            = (i_85_);
+    int i_82_ = _A;
+    int i_83_ = fC ? 1 : 0;
+    int i_84_ = i_82_ - i - i_83_;
+    int i_85_ = i_84_ & 0xff;
+    fS        = ((i_85_ & 0x80) != 0);
+    f3        = ((i_85_ & 0x8) != 0);
+    f5        = ((i_85_ & 0x20) != 0);
+    fZ        = (i_85_ == 0);
+    fC        = ((i_84_ & 0x100) != 0);
+    fPV       = (((i_82_ ^ i) & (i_82_ ^ i_85_) & 0x80) != 0);
+    fH        = (((i_82_ & 0xf) - (i & 0xf) - i_83_ & 0x10) != 0);
+    fN        = (true);
+    _A        = (i_85_);
 }
-void z80::and_a(uint8_t i)
+void z80::and_a(int i)
 {
-    uint8_t i_15_ = _A & i;
-    fS            = ((i_15_ & 0x80) != 0);
-    f3            = ((i_15_ & 0x8) != 0);
-    f5            = ((i_15_ & 0x20) != 0);
-    fH            = (true);
-    fPV           = (parity[i_15_ & 0xff]);
-    fZ            = (i_15_ == 0);
-    fN            = (false);
-    fC            = (false);
-    _A            = (i_15_);
+    int i_15_ = _A & i;
+    fS        = ((i_15_ & 0x80) != 0);
+    f3        = ((i_15_ & 0x8) != 0);
+    f5        = ((i_15_ & 0x20) != 0);
+    fH        = (true);
+    fPV       = (parity[i_15_ & 0xff]);
+    fZ        = (i_15_ == 0);
+    fN        = (false);
+    fC        = (false);
+    _A        = (i_15_);
 }
-void z80::xor_a(uint8_t i)
+void z80::xor_a(int i)
 {
-    uint8_t i_90_ = (_A ^ i) & 0xff;
-    fS            = ((i_90_ & 0x80) != 0);
-    f3            = ((i_90_ & 0x8) != 0);
-    f5            = ((i_90_ & 0x20) != 0);
-    fH            = (false);
-    fPV           = (parity[i_90_]);
-    fZ            = (i_90_ == 0);
-    fN            = (false);
-    fC            = (false);
-    _A            = (i_90_);
+    int i_90_ = (_A ^ i) & 0xff;
+    fS        = ((i_90_ & 0x80) != 0);
+    f3        = ((i_90_ & 0x8) != 0);
+    f5        = ((i_90_ & 0x20) != 0);
+    fH        = (false);
+    fPV       = (parity[i_90_]);
+    fZ        = (i_90_ == 0);
+    fN        = (false);
+    fC        = (false);
+    _A        = (i_90_);
 }
-void z80::or_a(uint8_t i)
+void z80::or_a(int i)
 {
-    uint8_t i_62_ = _A | i;
-    fS            = ((i_62_ & 0x80) != 0);
-    f3            = ((i_62_ & 0x8) != 0);
-    f5            = ((i_62_ & 0x20) != 0);
-    fH            = (false);
-    fPV           = (parity[i_62_]);
-    fZ            = (i_62_ == 0);
-    fN            = (false);
-    fC            = (false);
-    _A            = (i_62_);
+    int i_62_ = _A | i;
+    fS        = ((i_62_ & 0x80) != 0);
+    f3        = ((i_62_ & 0x8) != 0);
+    f5        = ((i_62_ & 0x20) != 0);
+    fH        = (false);
+    fPV       = (parity[i_62_]);
+    fZ        = (i_62_ == 0);
+    fN        = (false);
+    fC        = (false);
+    _A        = (i_62_);
 }
-void z80::cp_a(uint8_t i)
+void z80::cp_a(int i)
 {
-    uint8_t i_17_ = _A;
-    uint8_t i_18_ = i_17_ - i;
-    uint8_t i_19_ = i_18_ & 0xff;
-    fS            = ((i_19_ & 0x80) != 0);
-    f3            = ((i & 0x8) != 0);
-    f5            = ((i & 0x20) != 0);
-    fN            = (true);
-    fZ            = (i_19_ == 0);
-    fC            = ((i_18_ & 0x100) != 0);
-    fH            = (((i_17_ & 0xf) - (i & 0xf) & 0x10) != 0);
-    fPV           = (((i_17_ ^ i) & (i_17_ ^ i_19_) & 0x80) != 0);
+    int i_17_ = _A;
+    int i_18_ = i_17_ - i;
+    int i_19_ = i_18_ & 0xff;
+    fS        = ((i_19_ & 0x80) != 0);
+    f3        = ((i & 0x8) != 0);
+    f5        = ((i & 0x20) != 0);
+    fN        = (true);
+    fZ        = (i_19_ == 0);
+    fC        = ((i_18_ & 0x100) != 0);
+    fH        = (((i_17_ & 0xf) - (i & 0xf) & 0x10) != 0);
+    fPV       = (((i_17_ ^ i) & (i_17_ ^ i_19_) & 0x80) != 0);
 }
 void z80::poppc()
 {
     _PC = popw();
 }
-uint16_t z80::popw()
+int z80::popw()
 {
-    uint16_t i     = _SP;
-    uint16_t i_67_ = readMemWord(i++);
-    _SP            = (++i & 0xffff);
+    int i     = _SP;
+    int i_67_ = readMemWord(i++);
+    _SP       = (++i & 0xffff);
     return i_67_;
 }
 void z80::pushpc()
 {
     pushw(_PC);
 }
-void z80::pushw(uint16_t i)
+void z80::pushw(int i)
 {
-    uint16_t i_70_ = _SP - 2 & 0xffff;
-    _SP            = (i_70_);
+    int i_70_ = _SP - 2 & 0xffff;
+    _SP       = (i_70_);
     writeMemWord(i_70_, i);
 }
 
-uint8_t z80::rlc(uint8_t i)
+int z80::rlc(int i)
 {
     bool flg = (i & 0x80) != 0;
     if (flg)
@@ -4922,7 +4937,7 @@ uint8_t z80::rlc(uint8_t i)
     fC  = (flg);
     return i;
 }
-uint8_t z80::rrc(uint8_t i)
+int z80::rrc(int i)
 {
     bool flg = (i & 0x1) != 0;
     if (flg)
@@ -4939,7 +4954,7 @@ uint8_t z80::rrc(uint8_t i)
     fC  = (flg);
     return i;
 }
-uint8_t z80::rl(uint8_t i)
+int z80::rl(int i)
 {
     bool flg = (i & 0x80) != 0;
     if (fC)
@@ -4957,7 +4972,7 @@ uint8_t z80::rl(uint8_t i)
     fC  = (flg);
     return i;
 }
-uint8_t z80::rr(uint8_t i)
+int z80::rr(int i)
 {
     bool flg = (i & 0x1) != 0;
     if (fC)
@@ -4974,7 +4989,7 @@ uint8_t z80::rr(uint8_t i)
     fC  = (flg);
     return i;
 }
-uint8_t z80::sla(uint8_t i)
+int z80::sla(int i)
 {
     bool flg = (i & 0x80) != 0;
     i        = i << 1 & 0xff;
@@ -4988,7 +5003,7 @@ uint8_t z80::sla(uint8_t i)
     fC       = (flg);
     return i;
 }
-uint8_t z80::sra(uint8_t i)
+int z80::sra(int i)
 {
     bool flg = (i & 0x1) != 0;
     i        = i >> 1 | i & 0x80;
@@ -5002,7 +5017,7 @@ uint8_t z80::sra(uint8_t i)
     fC       = (flg);
     return i;
 }
-uint8_t z80::sls(uint8_t i)
+int z80::sls(int i)
 {
     bool flg = (i & 0x80) != 0;
     i        = (i << 1 | 0x1) & 0xff;
@@ -5016,7 +5031,7 @@ uint8_t z80::sls(uint8_t i)
     fC       = (flg);
     return i;
 }
-uint8_t z80::srl(uint8_t i)
+int z80::srl(int i)
 {
     bool flg = (i & 0x1) != 0;
     i >>= 1;
@@ -5030,7 +5045,7 @@ uint8_t z80::srl(uint8_t i)
     fC  = (flg);
     return i;
 }
-void z80::bit(uint8_t i, uint8_t i_16_)
+void z80::bit(int i, int i_16_)
 {
     bool flg = (i_16_ & i) != 0;
     fN       = (false);
@@ -5041,11 +5056,11 @@ void z80::bit(uint8_t i, uint8_t i_16_)
     fZ       = (flg ^ true);
     fPV      = (flg ^ true);
 }
-uint8_t z80::res(uint8_t i, uint8_t i_71_)
+int z80::res(int i, int i_71_)
 {
     return i_71_ & (i ^ 0xffffffff);
 }
-uint8_t z80::set(uint8_t i, uint8_t i_86_)
+int z80::set(int i, int i_86_)
 {
     return i_86_ | i;
 }
@@ -5057,65 +5072,65 @@ void z80::setIFF2(bool flg)
 {
     _IFF2 = flg;
 }
-void z80::setIDH(uint16_t i)
+void z80::setIDH(int i)
 {
     _ID = i << 8 & 0xff00 | _ID & 0xff;
 }
-void z80::setIDL(uint16_t i)
+void z80::setIDL(int i)
 {
     _ID = _ID & 0xff00 | i & 0xff;
 }
-uint16_t z80::ID_d()
+int z80::ID_d()
 {
     return _ID + bytef(readMem(_PC++)) & 0xffff;
 }
-uint16_t z80::nxtpcb()
+int z80::nxtpcb()
 {
     return readMem(_PC++);
 }
-uint8_t z80::in_bc()
+int z80::in_bc()
 {
-    uint8_t i = inb(_C);
-    fZ        = (i == 0);
-    fS        = ((i & 0x80) != 0);
-    f3        = ((i & 0x8) != 0);
-    f5        = ((i & 0x20) != 0);
-    fPV       = (parity[i]);
-    fN        = (false);
-    fH        = (false);
+    int i = inb(_C);
+    fZ    = (i == 0);
+    fS    = ((i & 0x80) != 0);
+    f3    = ((i & 0x8) != 0);
+    f5    = ((i & 0x20) != 0);
+    fPV   = (parity[i]);
+    fN    = (false);
+    fH    = (false);
     return i;
 }
-uint16_t z80::sbc16(uint16_t i, uint16_t i_78_)
+int z80::sbc16(int i, int i_78_)
 {
-    uint16_t i_79_ = fC ? 1 : 0;
-    uint16_t i_80_ = i - i_78_ - i_79_;
-    uint16_t i_81_ = i_80_ & 0xffff;
-    fS             = ((i_81_ & 0x8000) != 0);
-    f3             = ((i_81_ & 0x800) != 0);
-    f5             = ((i_81_ & 0x2000) != 0);
-    fZ             = (i_81_ == 0);
-    fC             = ((i_80_ & 0x10000) != 0);
-    fPV            = (((i ^ i_78_) & (i ^ i_81_) & 0x8000) != 0);
-    fH             = (((i & 0xfff) - (i_78_ & 0xfff) - i_79_ & 0x1000) != 0);
-    fN             = (true);
+    int i_79_ = fC ? 1 : 0;
+    int i_80_ = i - i_78_ - i_79_;
+    int i_81_ = i_80_ & 0xffff;
+    fS        = ((i_81_ & 0x8000) != 0);
+    f3        = ((i_81_ & 0x800) != 0);
+    f5        = ((i_81_ & 0x2000) != 0);
+    fZ        = (i_81_ == 0);
+    fC        = ((i_80_ & 0x10000) != 0);
+    fPV       = (((i ^ i_78_) & (i ^ i_81_) & 0x8000) != 0);
+    fH        = (((i & 0xfff) - (i_78_ & 0xfff) - i_79_ & 0x1000) != 0);
+    fN        = (true);
     return i_81_;
 }
-uint16_t z80::adc16(uint16_t i, uint16_t i_1_)
+int z80::adc16(int i, int i_1_)
 {
-    uint16_t i_2_ = fC ? 1 : 0;
-    uint16_t i_3_ = i + i_1_ + i_2_;
-    uint16_t i_4_ = i_3_ & 0xffff;
-    fS            = ((i_4_ & 0x8000) != 0);
-    f3            = ((i_4_ & 0x800) != 0);
-    f5            = ((i_4_ & 0x2000) != 0);
-    fZ            = (i_4_ == 0);
-    fC            = ((i_3_ & 0x10000) != 0);
-    fPV           = (((i ^ (i_1_ ^ 0xffffffff)) & (i ^ i_4_) & 0x8000) != 0);
-    fH            = (((i & 0xfff) + (i_1_ & 0xfff) + i_2_ & 0x1000) != 0);
-    fN            = (false);
+    int i_2_ = fC ? 1 : 0;
+    int i_3_ = i + i_1_ + i_2_;
+    int i_4_ = i_3_ & 0xffff;
+    fS       = ((i_4_ & 0x8000) != 0);
+    f3       = ((i_4_ & 0x800) != 0);
+    f5       = ((i_4_ & 0x2000) != 0);
+    fZ       = (i_4_ == 0);
+    fC       = ((i_3_ & 0x10000) != 0);
+    fPV      = (((i ^ (i_1_ ^ 0xffffffff)) & (i ^ i_4_) & 0x8000) != 0);
+    fH       = (((i & 0xfff) + (i_1_ & 0xfff) + i_2_ & 0x1000) != 0);
+    fN       = (false);
     return i_4_;
 }
-uint8_t z80::z80_interrupt()
+int z80::z80_interrupt()
 {
     if (!_IFF1)
         return 0;
@@ -5138,7 +5153,7 @@ uint8_t z80::z80_interrupt()
             return 0;
     }
 }
-uint8_t z80::inb(uint8_t i)
+int z80::inb(int i)
 {
     switch (i) {
         case 162:
@@ -5152,11 +5167,11 @@ uint8_t z80::inb(uint8_t i)
         case 171:
             return PPIPortD;
         case 152: {
-            uint8_t val = msx->vdp->lePortaDados();
+            int val = msx->vdp->lePortaDados();
             return val;
         }
         case 153: {
-            uint8_t val = msx->vdp->lePortaComandos();
+            int val = msx->vdp->lePortaComandos();
             return val;
         }
         default:
@@ -5166,7 +5181,7 @@ uint8_t z80::inb(uint8_t i)
     }
     return 255;
 }
-void z80::outb(uint8_t i, uint8_t i_19_)
+void z80::outb(int i, int i_19_)
 {
     switch (i) {
         case 142:
