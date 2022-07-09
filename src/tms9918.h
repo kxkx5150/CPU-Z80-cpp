@@ -1,9 +1,17 @@
 #ifndef _H_TMS
 #define _H_TMS
 #include <cstdint>
+#include <cstdio>
 #include <math.h>
+#include <vector>
 
 class TMS9918 {
+    uint64_t                          count   = 0;
+    uint32_t                          imgidx  = 0;
+    std::vector<std::vector<uint8_t>> palette = {{0, 0, 0},     {0, 0, 0},      {32, 192, 32},   {96, 224, 96},
+                                                 {32, 32, 224}, {64, 96, 224},  {160, 32, 32},   {64, 192, 224},
+                                                 {224, 32, 32}, {224, 96, 96},  {192, 192, 32},  {192, 192, 128},
+                                                 {32, 128, 32}, {192, 64, 160}, {160, 160, 160}, {224, 224, 224}};
 
     bool updateWholeScreen = true;
     int  regStatus         = 0;
@@ -21,7 +29,11 @@ class TMS9918 {
     int primeiro     = -1;
     int ultimo       = -1;
 
+    bool imgok = false;
+
   public:
+    uint32_t imgdata[256 * 192]{};
+
     uint8_t registros[8]          = {};
     uint8_t vidMem[16384]         = {};
     int     dirtyVidMem[960]      = {};
@@ -30,6 +42,7 @@ class TMS9918 {
   public:
     void reset()
     {
+        imgok             = false;
         updateWholeScreen = true;
         regStatus         = 0;
         screenAtual       = 0;
@@ -56,9 +69,28 @@ class TMS9918 {
             dirtyVidMem[i] = -1;
         }
     }
+    bool get_img_status()
+    {
+        if (imgok) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    void clear_img()
+    {
+        imgok = false;
+    }
+    uint32_t *get_img_data()
+    {
+        return imgdata;
+    }
     void updateScreen()
     {
+        count++;
+        imgok = true;
     }
+
     void atualizaTudo()
     {
         int i    = 0;
@@ -116,10 +148,7 @@ class TMS9918 {
                         }
                     }
                     imagemTela[i_9_] = i_10_;
-
-                    // imagedata.data[i_9_ * 4 + 0] = palette[i_10_][0];    // r
-                    // imagedata.data[i_9_ * 4 + 1] = palette[i_10_][1];    // g
-                    // imagedata.data[i_9_ * 4 + 2] = palette[i_10_][2];    // b
+                    set_img_data({palette[i_10_][0], palette[i_10_][1], palette[i_10_][2]}, i_9_);
                 }
             }
         }
@@ -158,7 +187,6 @@ class TMS9918 {
                 for (i_22_ = i_21_; i_22_ < i_21_ + 8; i_22_++) {              // glyph rows
                     for (i_23_ = 0; i_23_ < 8; i_23_++) {                      // glyph row pixels
                         i_24_ = (i_18_ + (i_22_ - i_21_) * 256 + i_23_ + 2048 * i_20_);
-                        // if ((vidMem[i_22_] & 1 << 7 - i_23_) > 0) {
                         i_25_ = 0;
                         if ((vidMem[i_22_] & (1 << (7 - i_23_))) > 0) {
                             switch (screenAtual) {
@@ -191,10 +219,7 @@ class TMS9918 {
                             }
                         }
                         imagemTela[i_24_] = i_25_;
-
-                        // imagedata.data[i_24_ * 4 + 0] = palette[i_25_][0];    // r
-                        // imagedata.data[i_24_ * 4 + 1] = palette[i_25_][1];    // g
-                        // imagedata.data[i_24_ * 4 + 2] = palette[i_25_][2];    // b
+                        set_img_data({palette[i_25_][0], palette[i_25_][1], palette[i_25_][2]}, i_24_);
                     }
                 }
             }
@@ -516,20 +541,19 @@ class TMS9918 {
                         for (i_53_ = 0; i_53_ < 8; i_53_++) {
                             if ((vidMem[i_52_] & (1 << (7 - i_53_))) > 0) {
                                 imagemTela[i_50_ + i_53_ + ((i_52_ - i_49_) << 8)] = i_51_;
-
-                                // imagedata.data[(i_50_ + i_53_ + (i_52_ - i_49_ << 8)) * 4 + 0] = palette[i_51_][0];
-                                // // r imagedata.data[(i_50_ + i_53_ + (i_52_ - i_49_ << 8)) * 4 + 1] =
-                                // palette[i_51_][1];
-                                //
-                                // g imagedata.data[(i_50_ + i_53_ + (i_52_ - i_49_ << 8)) * 4 + 2] = palette[i_51_][2];
-                                //
-                                // b
+                                set_img_data({palette[i_51_][0], palette[i_51_][1], palette[i_51_][2]},
+                                             (i_50_ + i_53_ + ((i_52_ - i_49_) << 8)));
                             }
                         }
                     }
                 }
             }
         }
+    }
+    void set_img_data(std::vector<uint8_t> rgb, int idx)
+    {
+        uint32_t dots = (0xFF000000 | (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]);
+        imgdata[idx]  = dots;
     }
     void montaUsandoMemoria()
     {

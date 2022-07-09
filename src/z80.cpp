@@ -99,7 +99,7 @@ void z80::load(std::vector<int> &bin, int idx, int offset, int size)
 }
 int z80::file_read()
 {
-    logcheck      = true;
+    logcheck      = false;
     stepinfo      = false;
     filename      = "logs/log0.txt";
     filecheck_end = 10000;
