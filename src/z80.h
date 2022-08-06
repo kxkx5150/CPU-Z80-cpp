@@ -4,23 +4,17 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include "mem.h"
 
-using namespace std;
 const int T_STATES_PER_INTERRUPT = 59659;
 
 class PC;
 class z80 {
   private:
-    PC      *msx   = nullptr;
+    PC  *msx = nullptr;
+    Mem *mem = nullptr;
+
     uint64_t count = 0;
-
-    int *memReadMap[4]{};
-    int *rom[32]{};
-
-    bool megarom       = false;
-    int  pagMegaRom[4] = {0, 1, 2, 3};
-    int  tipoMegarom   = 0;
-    int  cartSlot      = 0;
 
     int _A = 0;
     int _B = 0;
@@ -55,32 +49,25 @@ class z80 {
     bool _IFF1 = true;
     bool _IFF2 = true;
 
-    int PPIPortA = 0;
-    // int PPIPortB = 255;
-    int PPIPortC = 0;
-    int PPIPortD = 0;
-
     int parity[256];
     int portos[256];
 
-    bool podeEscrever[4] = {false, false, false, true};
-    bool showpc          = false;
+    bool showpc = false;
 
-    bool           logcheck        = false;
-    bool           stepinfo        = false;
-    string         filename        = "log0.txt";
-    int            filecheck_start = 0;
-    int            filecheck_end   = 1000;
-    int            fileoffset      = 0;
-    vector<string> lines;
+    bool                     logcheck        = false;
+    bool                     stepinfo        = false;
+    std::string              filename        = "log0.txt";
+    int                      filecheck_start = 0;
+    int                      filecheck_end   = 1000;
+    int                      fileoffset      = 0;
+    std::vector<std::string> lines;
 
   public:
-    z80(PC *_pc);
+    z80(PC *_pc, Mem *_mem);
     ~z80();
 
     void run();
     void reset();
-    void load(std::vector<int> &bin, int idx, int offset, int size);
     int  z80_interrupt();
     void dump(int opcode, int i);
     int  file_read();
@@ -135,13 +122,6 @@ class z80 {
     int  ID_d();
 
     int nxtpcb();
-
-    int  readMem(int address);
-    int  readMemWord(int address);
-    void writeMem(int address, int value);
-    void writeMemWord(int address, int value);
-
-    void preparaMemoriaMegarom(string address);
 
   private:
 };

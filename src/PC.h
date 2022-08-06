@@ -1,6 +1,7 @@
 #ifndef _H_PC
 #define _H_PC
 
+#include "mem.h"
 #include "z80.h"
 #include "psg8910.h"
 #include "keyboard.h"
@@ -22,6 +23,7 @@ class PC {
     void run_cpu();
 
   public:
+    Mem     *mem      = nullptr;
     PSG8910 *psg      = nullptr;
     z80     *cpu      = nullptr;
     KBD     *keyboard = nullptr;

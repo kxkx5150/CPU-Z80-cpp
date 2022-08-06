@@ -4,40 +4,21 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
+#include "mem.h"
 
-// #include "tms9918.h"
-
-z80::z80(PC *_pc)
+z80::z80(PC *_pc, Mem *_mem)
 {
     msx = _pc;
+    mem = _mem;
 
-    for (int i = 0; i < 4; i++) {
-        memReadMap[i] = new int[65536]{255};
-    }
-    for (int i = 0; i < 32; i++) {
-        rom[i] = new int[8192]{0};
-    }
     reset();
     file_read();
 }
 z80::~z80()
 {
-    for (int i = 0; i < 4; i++) {
-        delete[] memReadMap[i];
-    }
-
-    for (int i = 0; i < 32; i++) {
-        delete[] rom[i];
-    }
 }
 void z80::reset()
 {
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 65536; j++) {
-            memReadMap[i][j] = 255;
-        }
-    }
-
     for (int i = 0; i < 256; i++) {
         int flg = 1;
         for (int i_0_ = 0; i_0_ < 8; i_0_++) {
@@ -91,12 +72,6 @@ void z80::reset()
     for (i = 0; i < 256; i++)
         portos[i] = -1;
 }
-void z80::load(std::vector<int> &bin, int idx, int offset, int size)
-{
-    for (int i = offset; i < size; i++) {
-        memReadMap[idx][i] = bin[i - offset];
-    }
-}
 int z80::file_read()
 {
     logcheck      = false;
@@ -105,8 +80,8 @@ int z80::file_read()
     filecheck_end = 10000;
 
     if (logcheck) {
-        string   line;
-        ifstream input_file(filename);
+        std::string   line;
+        std::ifstream input_file(filename);
         if (!input_file.is_open()) {
             logcheck = false;
             stepinfo = false;
@@ -176,7 +151,7 @@ void z80::dump(int opcode, int i)
         // printf("%s\n", buf9);
 
         char buf10[1000];
-        sprintf(buf10, "PPA=%04X PPC=%04X PPD=%04X", PPIPortA, PPIPortC, PPIPortD);
+        sprintf(buf10, "PPA=%04X PPC=%04X PPD=%04X", mem->PPIPortA, mem->PPIPortC, mem->PPIPortD);
         // printf("%s\n", buf10);
 
         if (stepinfo) {
@@ -229,7 +204,7 @@ void z80::run()
 
     while (i < 0) {
         _R += 1;
-        opcode = readMem(_PC++);
+        opcode = mem->readMem(_PC++);
 
         if (count == 263551) {
             printf(" ");
@@ -254,7 +229,7 @@ void z80::run()
                 _B = (i_3_ = _B - 1 & 0xff);
 
                 if (i_3_ != 0) {
-                    i_2_ = bytef(readMem(_PC++));
+                    i_2_ = bytef(mem->readMem(_PC++));
                     _PC  = (_PC + i_2_ & 0xffff);
                     i += 13;
                 } else {
@@ -264,14 +239,14 @@ void z80::run()
                 break;
             }
             case 24: {
-                i_2_ = bytef(readMem(_PC++));
+                i_2_ = bytef(mem->readMem(_PC++));
                 _PC  = (_PC + i_2_ & 0xffff);
                 i += 12;
                 break;
             }
             case 32:
                 if (!fZ) {
-                    i_2_ = bytef(readMem(_PC++));
+                    i_2_ = bytef(mem->readMem(_PC++));
                     _PC  = (_PC + i_2_ & 0xffff);
                     i += 12;
                 } else {
@@ -281,7 +256,7 @@ void z80::run()
                 break;
             case 40:
                 if (fZ) {
-                    i_2_ = bytef(readMem(_PC++));
+                    i_2_ = bytef(mem->readMem(_PC++));
                     _PC  = (_PC + i_2_ & 0xffff);
                     i += 12;
                 } else {
@@ -291,7 +266,7 @@ void z80::run()
                 break;
             case 48:
                 if (!fC) {
-                    i_2_ = bytef(readMem(_PC++));
+                    i_2_ = bytef(mem->readMem(_PC++));
                     _PC  = (_PC + i_2_ & 0xffff);
                     i += 12;
                 } else {
@@ -301,7 +276,7 @@ void z80::run()
                 break;
             case 56:
                 if (fC) {
-                    i_2_ = bytef(readMem(_PC++));
+                    i_2_ = bytef(mem->readMem(_PC++));
                     _PC  = (_PC + i_2_ & 0xffff);
                     i += 12;
                 } else {
@@ -310,7 +285,7 @@ void z80::run()
                 }
                 break;
             case 1:
-                setBC(readMemWord((_PC = _PC + 2) - 2));
+                setBC(mem->readMemWord((_PC = _PC + 2) - 2));
                 i += 10;
                 break;
             case 9:
@@ -318,7 +293,7 @@ void z80::run()
                 i += 11;
                 break;
             case 17:
-                setDE(readMemWord((_PC = _PC + 2) - 2));
+                setDE(mem->readMemWord((_PC = _PC + 2) - 2));
                 i += 10;
                 break;
             case 25:
@@ -326,7 +301,7 @@ void z80::run()
                 i += 11;
                 break;
             case 33:
-                setHL(readMemWord((_PC = _PC + 2) - 2));
+                setHL(mem->readMemWord((_PC = _PC + 2) - 2));
                 i += 10;
                 break;
             case 41: {
@@ -336,7 +311,7 @@ void z80::run()
                 break;
             }
             case 49:
-                _SP = (readMemWord((_PC = _PC + 2) - 2));
+                _SP = (mem->readMemWord((_PC = _PC + 2) - 2));
                 i += 10;
                 break;
             case 57:
@@ -344,35 +319,35 @@ void z80::run()
                 i += 11;
                 break;
             case 2:
-                writeMem(BC(), _A);
+                mem->writeMem(BC(), _A);
                 i += 7;
                 break;
             case 10:
-                _A = (readMem(BC()));
+                _A = (mem->readMem(BC()));
                 i += 7;
                 break;
             case 18:
-                writeMem(DE(), _A);
+                mem->writeMem(DE(), _A);
                 i += 7;
                 break;
             case 26:
-                _A = (readMem(DE()));
+                _A = (mem->readMem(DE()));
                 i += 7;
                 break;
             case 34:
-                writeMemWord(readMemWord((_PC = _PC + 2) - 2), HL());
+                mem->writeMemWord(mem->readMemWord((_PC = _PC + 2) - 2), HL());
                 i += 16;
                 break;
             case 42:
-                setHL(readMemWord(readMemWord((_PC = _PC + 2) - 2)));
+                setHL(mem->readMemWord(mem->readMemWord((_PC = _PC + 2) - 2)));
                 i += 16;
                 break;
             case 50:
-                writeMem(readMemWord((_PC = _PC + 2) - 2), _A);
+                mem->writeMem(mem->readMemWord((_PC = _PC + 2) - 2), _A);
                 i += 13;
                 break;
             case 58:
-                _A = (readMem(readMemWord((_PC = _PC + 2) - 2)));
+                _A = (mem->readMem(mem->readMemWord((_PC = _PC + 2) - 2)));
                 i += 13;
                 break;
             case 3:
@@ -433,7 +408,7 @@ void z80::run()
                 break;
             case 52: {
                 i_2_ = HL();
-                writeMem(i_2_, inc8(readMem(i_2_)));
+                mem->writeMem(i_2_, inc8(mem->readMem(i_2_)));
                 i += 11;
                 break;
             }
@@ -467,7 +442,7 @@ void z80::run()
                 break;
             case 53: {
                 i_2_ = HL();
-                writeMem(i_2_, dec8(readMem(i_2_)));
+                mem->writeMem(i_2_, dec8(mem->readMem(i_2_)));
                 i += 11;
                 break;
             }
@@ -476,35 +451,35 @@ void z80::run()
                 i += 4;
                 break;
             case 6:
-                _B = (readMem(_PC++));
+                _B = (mem->readMem(_PC++));
                 i += 7;
                 break;
             case 14:
-                _C = (readMem(_PC++));
+                _C = (mem->readMem(_PC++));
                 i += 7;
                 break;
             case 22:
-                _D = (readMem(_PC++));
+                _D = (mem->readMem(_PC++));
                 i += 7;
                 break;
             case 30:
-                _E = (readMem(_PC++));
+                _E = (mem->readMem(_PC++));
                 i += 7;
                 break;
             case 38:
-                _H = (readMem(_PC++));
+                _H = (mem->readMem(_PC++));
                 i += 7;
                 break;
             case 46:
-                _L = (readMem(_PC++));
+                _L = (mem->readMem(_PC++));
                 i += 7;
                 break;
             case 54:
-                writeMem(HL(), readMem(_PC++));
+                mem->writeMem(HL(), mem->readMem(_PC++));
                 i += 10;
                 break;
             case 62:
-                _A = (readMem(_PC++));
+                _A = (mem->readMem(_PC++));
                 i += 7;
                 break;
             case 7: {
@@ -638,7 +613,7 @@ void z80::run()
                 i += 4;
                 break;
             case 70:
-                _B = (readMem(HL()));
+                _B = (mem->readMem(HL()));
                 i += 7;
                 break;
             case 71:
@@ -669,7 +644,7 @@ void z80::run()
                 i += 4;
                 break;
             case 78:
-                _C = (readMem(HL()));
+                _C = (mem->readMem(HL()));
                 i += 7;
                 break;
             case 79:
@@ -700,7 +675,7 @@ void z80::run()
                 i += 4;
                 break;
             case 86:
-                _D = (readMem(HL()));
+                _D = (mem->readMem(HL()));
                 i += 7;
                 break;
             case 87:
@@ -731,7 +706,7 @@ void z80::run()
                 i += 4;
                 break;
             case 94:
-                _E = (readMem(HL()));
+                _E = (mem->readMem(HL()));
                 i += 7;
                 break;
             case 95:
@@ -762,7 +737,7 @@ void z80::run()
                 i += 4;
                 break;
             case 102:
-                _H = (readMem(HL()));
+                _H = (mem->readMem(HL()));
                 i += 7;
                 break;
             case 103:
@@ -793,7 +768,7 @@ void z80::run()
                 i += 4;
                 break;
             case 110:
-                _L = (readMem(HL()));
+                _L = (mem->readMem(HL()));
                 i += 7;
                 break;
             case 111:
@@ -801,27 +776,27 @@ void z80::run()
                 i += 4;
                 break;
             case 112:
-                writeMem(HL(), _B);
+                mem->writeMem(HL(), _B);
                 i += 7;
                 break;
             case 113:
-                writeMem(HL(), _C);
+                mem->writeMem(HL(), _C);
                 i += 7;
                 break;
             case 114:
-                writeMem(HL(), _D);
+                mem->writeMem(HL(), _D);
                 i += 7;
                 break;
             case 115:
-                writeMem(HL(), _E);
+                mem->writeMem(HL(), _E);
                 i += 7;
                 break;
             case 116:
-                writeMem(HL(), _H);
+                mem->writeMem(HL(), _H);
                 i += 7;
                 break;
             case 117:
-                writeMem(HL(), _L);
+                mem->writeMem(HL(), _L);
                 i += 7;
                 break;
             case 118: {
@@ -832,7 +807,7 @@ void z80::run()
                 break;
             }
             case 119:
-                writeMem(HL(), _A);
+                mem->writeMem(HL(), _A);
                 i += 7;
                 break;
             case 120:
@@ -860,7 +835,7 @@ void z80::run()
                 i += 4;
                 break;
             case 126:
-                _A = (readMem(HL()));
+                _A = (mem->readMem(HL()));
                 i += 7;
                 break;
             case 127:
@@ -891,7 +866,7 @@ void z80::run()
                 i += 4;
                 break;
             case 134:
-                add_a(readMem(HL()));
+                add_a(mem->readMem(HL()));
                 i += 7;
                 break;
             case 135:
@@ -923,7 +898,7 @@ void z80::run()
                 i += 4;
                 break;
             case 142:
-                adc_a(readMem(HL()));
+                adc_a(mem->readMem(HL()));
                 i += 7;
                 break;
             case 143:
@@ -955,7 +930,7 @@ void z80::run()
                 i += 4;
                 break;
             case 150:
-                sub_a(readMem(HL()));
+                sub_a(mem->readMem(HL()));
                 i += 7;
                 break;
             case 151:
@@ -987,7 +962,7 @@ void z80::run()
                 i += 4;
                 break;
             case 158:
-                sbc_a(readMem(HL()));
+                sbc_a(mem->readMem(HL()));
                 i += 7;
                 break;
             case 159:
@@ -1019,7 +994,7 @@ void z80::run()
                 i += 4;
                 break;
             case 166:
-                and_a(readMem(HL()));
+                and_a(mem->readMem(HL()));
                 i += 7;
                 break;
             case 167:
@@ -1051,7 +1026,7 @@ void z80::run()
                 i += 4;
                 break;
             case 174:
-                xor_a(readMem(HL()));
+                xor_a(mem->readMem(HL()));
                 i += 7;
                 break;
             case 175:
@@ -1083,7 +1058,7 @@ void z80::run()
                 i += 4;
                 break;
             case 182:
-                or_a(readMem(HL()));
+                or_a(mem->readMem(HL()));
                 i += 7;
                 break;
             case 183:
@@ -1115,7 +1090,7 @@ void z80::run()
                 i += 4;
                 break;
             case 190:
-                cp_a(readMem(HL()));
+                cp_a(mem->readMem(HL()));
                 i += 7;
                 break;
             case 191:
@@ -1222,68 +1197,68 @@ void z80::run()
                 break;
             case 194:
                 if (!fZ)
-                    _PC = (readMemWord((_PC = _PC + 2) - 2));
+                    _PC = (mem->readMemWord((_PC = _PC + 2) - 2));
                 else
                     _PC = (_PC + 2 & 0xffff);
                 i += 10;
                 break;
             case 202:
                 if (fZ)
-                    _PC = (readMemWord((_PC = _PC + 2) - 2));
+                    _PC = (mem->readMemWord((_PC = _PC + 2) - 2));
                 else
                     _PC = (_PC + 2 & 0xffff);
                 i += 10;
                 break;
             case 210:
                 if (!fC)
-                    _PC = (readMemWord((_PC = _PC + 2) - 2));
+                    _PC = (mem->readMemWord((_PC = _PC + 2) - 2));
                 else
                     _PC = (_PC + 2 & 0xffff);
                 i += 10;
                 break;
             case 218:
                 if (fC)
-                    _PC = (readMemWord((_PC = _PC + 2) - 2));
+                    _PC = (mem->readMemWord((_PC = _PC + 2) - 2));
                 else
                     _PC = (_PC + 2 & 0xffff);
                 i += 10;
                 break;
             case 226:
                 if (!fPV)
-                    _PC = (readMemWord((_PC = _PC + 2) - 2));
+                    _PC = (mem->readMemWord((_PC = _PC + 2) - 2));
                 else
                     _PC = (_PC + 2 & 0xffff);
                 i += 10;
                 break;
             case 234:
                 if (fPV)
-                    _PC = (readMemWord((_PC = _PC + 2) - 2));
+                    _PC = (mem->readMemWord((_PC = _PC + 2) - 2));
                 else
                     _PC = (_PC + 2 & 0xffff);
                 i += 10;
                 break;
             case 242:
                 if (!fS)
-                    _PC = (readMemWord((_PC = _PC + 2) - 2));
+                    _PC = (mem->readMemWord((_PC = _PC + 2) - 2));
                 else
                     _PC = (_PC + 2 & 0xffff);
                 i += 10;
                 break;
             case 250:
                 if (fS)
-                    _PC = (readMemWord((_PC = _PC + 2) - 2));
+                    _PC = (mem->readMemWord((_PC = _PC + 2) - 2));
                 else
                     _PC = (_PC + 2 & 0xffff);
                 i += 10;
                 break;
             case 195:
-                _PC = (readMemWord(_PC));
+                _PC = (mem->readMemWord(_PC));
                 i += 10;
                 break;
             case 203: {
                 int ii = HL();
                 _R += (1);
-                switch (readMem(_PC++)) {
+                switch (mem->readMem(_PC++)) {
                     case 0:
                         _B = (rlc(_B));
                         i += 8;
@@ -1310,7 +1285,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 6: {
                         // ii = HL();
-                        writeMem(ii, rlc(readMem(ii)));
+                        mem->writeMem(ii, rlc(mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1344,7 +1319,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 14: {
                         // ii = HL();
-                        writeMem(ii, rrc(readMem(ii)));
+                        mem->writeMem(ii, rrc(mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1378,7 +1353,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 22: {
                         // ii = HL();
-                        writeMem(ii, rl(readMem(ii)));
+                        mem->writeMem(ii, rl(mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1412,7 +1387,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 30: {
                         // ii = HL();
-                        writeMem(ii, rr(readMem(ii)));
+                        mem->writeMem(ii, rr(mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1446,7 +1421,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 38: {
                         // ii = HL();
-                        writeMem(ii, sla(readMem(ii)));
+                        mem->writeMem(ii, sla(mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1480,7 +1455,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 46: {
                         // ii = HL();
-                        writeMem(ii, sra(readMem(ii)));
+                        mem->writeMem(ii, sra(mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1514,7 +1489,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 54: {
                         // ii = HL();
-                        writeMem(ii, sls(readMem(ii)));
+                        mem->writeMem(ii, sls(mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1548,7 +1523,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 62: {
                         // ii = HL();
-                        writeMem(ii, srl(readMem(ii)));
+                        mem->writeMem(ii, srl(mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1581,7 +1556,7 @@ void z80::run()
                         i += 8;
                         goto EXEC_CB;
                     case 70:
-                        bit(1, readMem(HL()));
+                        bit(1, mem->readMem(HL()));
                         i += 12;
                         goto EXEC_CB;
                     case 71:
@@ -1613,7 +1588,7 @@ void z80::run()
                         i += 8;
                         goto EXEC_CB;
                     case 78:
-                        bit(2, readMem(HL()));
+                        bit(2, mem->readMem(HL()));
                         i += 12;
                         goto EXEC_CB;
                     case 79:
@@ -1645,7 +1620,7 @@ void z80::run()
                         i += 8;
                         goto EXEC_CB;
                     case 86:
-                        bit(4, readMem(HL()));
+                        bit(4, mem->readMem(HL()));
                         i += 12;
                         goto EXEC_CB;
                     case 87:
@@ -1677,7 +1652,7 @@ void z80::run()
                         i += 8;
                         goto EXEC_CB;
                     case 94:
-                        bit(8, readMem(HL()));
+                        bit(8, mem->readMem(HL()));
                         i += 12;
                         goto EXEC_CB;
                     case 95:
@@ -1709,7 +1684,7 @@ void z80::run()
                         i += 8;
                         goto EXEC_CB;
                     case 102:
-                        bit(16, readMem(HL()));
+                        bit(16, mem->readMem(HL()));
                         i += 12;
                         goto EXEC_CB;
                     case 103:
@@ -1741,7 +1716,7 @@ void z80::run()
                         i += 8;
                         goto EXEC_CB;
                     case 110:
-                        bit(32, readMem(HL()));
+                        bit(32, mem->readMem(HL()));
                         i += 12;
                         goto EXEC_CB;
                     case 111:
@@ -1773,7 +1748,7 @@ void z80::run()
                         i += 8;
                         goto EXEC_CB;
                     case 118:
-                        bit(64, readMem(HL()));
+                        bit(64, mem->readMem(HL()));
                         i += 12;
                         goto EXEC_CB;
                     case 119:
@@ -1805,7 +1780,7 @@ void z80::run()
                         i += 8;
                         goto EXEC_CB;
                     case 126:
-                        bit(128, readMem(HL()));
+                        bit(128, mem->readMem(HL()));
                         i += 12;
                         goto EXEC_CB;
                     case 127:
@@ -1838,7 +1813,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 134: {
                         // ii = HL();
-                        writeMem(ii, res(1, readMem(ii)));
+                        mem->writeMem(ii, res(1, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1872,7 +1847,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 142: {
                         // ii = HL();
-                        writeMem(ii, res(2, readMem(ii)));
+                        mem->writeMem(ii, res(2, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1906,7 +1881,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 150: {
                         // ii = HL();
-                        writeMem(ii, res(4, readMem(ii)));
+                        mem->writeMem(ii, res(4, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1940,7 +1915,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 158: {
                         // ii = HL();
-                        writeMem(ii, res(8, readMem(ii)));
+                        mem->writeMem(ii, res(8, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -1974,7 +1949,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 166: {
                         // ii = HL();
-                        writeMem(ii, res(16, readMem(ii)));
+                        mem->writeMem(ii, res(16, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2008,7 +1983,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 174: {
                         // ii = HL();
-                        writeMem(ii, res(32, readMem(ii)));
+                        mem->writeMem(ii, res(32, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2042,7 +2017,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 182: {
                         // ii = HL();
-                        writeMem(ii, res(64, readMem(ii)));
+                        mem->writeMem(ii, res(64, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2076,7 +2051,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 190: {
                         // ii = HL();
-                        writeMem(ii, res(128, readMem(ii)));
+                        mem->writeMem(ii, res(128, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2110,7 +2085,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 198: {
                         // ii = HL();
-                        writeMem(ii, set(1, readMem(ii)));
+                        mem->writeMem(ii, set(1, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2144,7 +2119,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 206: {
                         // ii = HL();
-                        writeMem(ii, set(2, readMem(ii)));
+                        mem->writeMem(ii, set(2, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2178,7 +2153,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 214: {
                         // ii = HL();
-                        writeMem(ii, set(4, readMem(ii)));
+                        mem->writeMem(ii, set(4, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2212,7 +2187,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 222: {
                         // ii = HL();
-                        writeMem(ii, set(8, readMem(ii)));
+                        mem->writeMem(ii, set(8, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2246,7 +2221,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 230: {
                         // ii = HL();
-                        writeMem(ii, set(16, readMem(ii)));
+                        mem->writeMem(ii, set(16, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2280,7 +2255,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 238: {
                         // ii = HL();
-                        writeMem(ii, set(32, readMem(ii)));
+                        mem->writeMem(ii, set(32, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2314,7 +2289,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 246: {
                         // ii = HL();
-                        writeMem(ii, set(64, readMem(ii)));
+                        mem->writeMem(ii, set(64, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2348,7 +2323,7 @@ void z80::run()
                         goto EXEC_CB;
                     case 254: {
                         // ii = HL();
-                        writeMem(ii, set(128, readMem(ii)));
+                        mem->writeMem(ii, set(128, mem->readMem(ii)));
                         i += 15;
                     }
                         goto EXEC_CB;
@@ -2362,18 +2337,18 @@ void z80::run()
             EXEC_CB:;
             } break;
             case 211:
-                outb(readMem(_PC++), _A);
+                outb(mem->readMem(_PC++), _A);
                 i += 11;
                 break;
             case 219:
-                _A = (inb(readMem(_PC++)));
+                _A = (inb(mem->readMem(_PC++)));
                 i += 11;
                 break;
             case 227: {
                 i_3_ = HL();
                 i_2_ = _SP;
-                setHL(readMemWord(i_2_));
-                writeMemWord(i_2_, i_3_);
+                setHL(mem->readMemWord(i_2_));
+                mem->writeMemWord(i_2_, i_3_);
                 i += 19;
                 break;
             }
@@ -2396,7 +2371,7 @@ void z80::run()
                 break;
             case 196:
                 if (!fZ) {
-                    i_2_ = readMemWord((_PC = _PC + 2) - 2);
+                    i_2_ = mem->readMemWord((_PC = _PC + 2) - 2);
                     pushpc();
                     _PC = (i_2_);
                     i += 17;
@@ -2407,7 +2382,7 @@ void z80::run()
                 break;
             case 204:
                 if (fZ) {
-                    i_2_ = readMemWord((_PC = _PC + 2) - 2);
+                    i_2_ = mem->readMemWord((_PC = _PC + 2) - 2);
                     pushpc();
                     _PC = (i_2_);
                     i += 17;
@@ -2418,7 +2393,7 @@ void z80::run()
                 break;
             case 212:
                 if (!fC) {
-                    i_2_ = readMemWord((_PC = _PC + 2) - 2);
+                    i_2_ = mem->readMemWord((_PC = _PC + 2) - 2);
                     pushpc();
                     _PC = (i_2_);
                     i += 17;
@@ -2429,7 +2404,7 @@ void z80::run()
                 break;
             case 220:
                 if (fC) {
-                    i_2_ = readMemWord((_PC = _PC + 2) - 2);
+                    i_2_ = mem->readMemWord((_PC = _PC + 2) - 2);
                     pushpc();
                     _PC = (i_2_);
                     i += 17;
@@ -2440,7 +2415,7 @@ void z80::run()
                 break;
             case 228:
                 if (!fPV) {
-                    i_2_ = readMemWord((_PC = _PC + 2) - 2);
+                    i_2_ = mem->readMemWord((_PC = _PC + 2) - 2);
                     pushpc();
                     _PC = (i_2_);
                     i += 17;
@@ -2451,7 +2426,7 @@ void z80::run()
                 break;
             case 236:
                 if (fPV) {
-                    i_2_ = readMemWord((_PC = _PC + 2) - 2);
+                    i_2_ = mem->readMemWord((_PC = _PC + 2) - 2);
                     pushpc();
                     _PC = (i_2_);
                     i += 17;
@@ -2462,7 +2437,7 @@ void z80::run()
                 break;
             case 244:
                 if (!fS) {
-                    i_2_ = readMemWord((_PC = _PC + 2) - 2);
+                    i_2_ = mem->readMemWord((_PC = _PC + 2) - 2);
                     pushpc();
                     _PC = (i_2_);
                     i += 17;
@@ -2473,7 +2448,7 @@ void z80::run()
                 break;
             case 252:
                 if (fS) {
-                    i_2_ = readMemWord((_PC = _PC + 2) - 2);
+                    i_2_ = mem->readMemWord((_PC = _PC + 2) - 2);
                     pushpc();
                     _PC = (i_2_);
                     i += 17;
@@ -2487,7 +2462,7 @@ void z80::run()
                 i += 11;
                 break;
             case 205: {
-                i_2_ = readMemWord((_PC = _PC + 2) - 2);
+                i_2_ = mem->readMemWord((_PC = _PC + 2) - 2);
                 pushpc();
                 _PC = (i_2_);
                 i += 17;
@@ -2509,7 +2484,7 @@ void z80::run()
                     int ii;
                     int ii2;
                     _R += (1);
-                    switch (readMem(_PC++)) {
+                    switch (mem->readMem(_PC++)) {
                         case 0:
                         case 1:
                         case 2:
@@ -2696,15 +2671,15 @@ void z80::run()
                             i += 15;
                             goto EXEC_ID;
                         case 33:
-                            _ID = readMemWord((_PC = _PC + 2) - 2);
+                            _ID = mem->readMemWord((_PC = _PC + 2) - 2);
                             i += 14;
                             goto EXEC_ID;
                         case 34:
-                            writeMemWord(readMemWord((_PC = _PC + 2) - 2), _ID);
+                            mem->writeMemWord(mem->readMemWord((_PC = _PC + 2) - 2), _ID);
                             i += 20;
                             goto EXEC_ID;
                         case 42:
-                            _ID = readMemWord(readMemWord((_PC = _PC + 2) - 2));
+                            _ID = mem->readMemWord(mem->readMemWord((_PC = _PC + 2) - 2));
                             i += 20;
                             goto EXEC_ID;
                         case 35:
@@ -2725,7 +2700,7 @@ void z80::run()
                             goto EXEC_ID;
                         case 52: {
                             ii = ID_d();
-                            writeMem(ii, inc8(readMem(ii)));
+                            mem->writeMem(ii, inc8(mem->readMem(ii)));
                             i += 23;
                         }
                             goto EXEC_ID;
@@ -2739,12 +2714,12 @@ void z80::run()
                             goto EXEC_ID;
                         case 53: {
                             ii = ID_d();
-                            writeMem(ii, dec8(readMem(ii)));
+                            mem->writeMem(ii, dec8(mem->readMem(ii)));
                             i += 23;
                         }
                             goto EXEC_ID;
                         case 38:
-                            setIDH(readMem(_PC++));
+                            setIDH(mem->readMem(_PC++));
                             i += 11;
                             goto EXEC_ID;
                         case 46:
@@ -2753,7 +2728,7 @@ void z80::run()
                             goto EXEC_ID;
                         case 54: {
                             ii = ID_d();
-                            writeMem(ii, readMem(_PC++));
+                            mem->writeMem(ii, mem->readMem(_PC++));
                             i += 19;
                         }
                             goto EXEC_ID;
@@ -2766,7 +2741,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 70:
-                            _B = (readMem(ID_d()));
+                            _B = (mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 76:
@@ -2778,7 +2753,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 78:
-                            _C = (readMem(ID_d()));
+                            _C = (mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 84:
@@ -2790,7 +2765,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 86:
-                            _D = (readMem(ID_d()));
+                            _D = (mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 92:
@@ -2802,7 +2777,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 94:
-                            _E = (readMem(ID_d()));
+                            _E = (mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 96:
@@ -2829,7 +2804,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 102:
-                            _H = (readMem(ID_d()));
+                            _H = (mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 103:
@@ -2860,7 +2835,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 110:
-                            _L = (readMem(ID_d()));
+                            _L = (mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 111:
@@ -2868,31 +2843,31 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 112:
-                            writeMem(ID_d(), _B);
+                            mem->writeMem(ID_d(), _B);
                             i += 19;
                             goto EXEC_ID;
                         case 113:
-                            writeMem(ID_d(), _C);
+                            mem->writeMem(ID_d(), _C);
                             i += 19;
                             goto EXEC_ID;
                         case 114:
-                            writeMem(ID_d(), _D);
+                            mem->writeMem(ID_d(), _D);
                             i += 19;
                             goto EXEC_ID;
                         case 115:
-                            writeMem(ID_d(), _E);
+                            mem->writeMem(ID_d(), _E);
                             i += 19;
                             goto EXEC_ID;
                         case 116:
-                            writeMem(ID_d(), _H);
+                            mem->writeMem(ID_d(), _H);
                             i += 19;
                             goto EXEC_ID;
                         case 117:
-                            writeMem(ID_d(), _L);
+                            mem->writeMem(ID_d(), _L);
                             i += 19;
                             goto EXEC_ID;
                         case 119:
-                            writeMem(ID_d(), _A);
+                            mem->writeMem(ID_d(), _A);
                             i += 19;
                             goto EXEC_ID;
                         case 124:
@@ -2904,7 +2879,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 126:
-                            _A = (readMem(ID_d()));
+                            _A = (mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 132:
@@ -2916,7 +2891,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 134:
-                            add_a(readMem(ID_d()));
+                            add_a(mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 140:
@@ -2928,7 +2903,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 142:
-                            adc_a(readMem(ID_d()));
+                            adc_a(mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 148:
@@ -2940,7 +2915,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 150:
-                            sub_a(readMem(ID_d()));
+                            sub_a(mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 156:
@@ -2952,7 +2927,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 158:
-                            sbc_a(readMem(ID_d()));
+                            sbc_a(mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 164:
@@ -2964,7 +2939,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 166:
-                            and_a(readMem(ID_d()));
+                            and_a(mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 172:
@@ -2976,7 +2951,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 174:
-                            xor_a(readMem(ID_d()));
+                            xor_a(mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 180:
@@ -2988,7 +2963,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 182:
-                            or_a(readMem(ID_d()));
+                            or_a(mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 188:
@@ -3000,7 +2975,7 @@ void z80::run()
                             i += 8;
                             goto EXEC_ID;
                         case 190:
-                            cp_a(readMem(ID_d()));
+                            cp_a(mem->readMem(ID_d()));
                             i += 19;
                             goto EXEC_ID;
                         case 225:
@@ -3017,256 +2992,256 @@ void z80::run()
                             goto EXEC_ID;
                         case 203: {
                             ii  = ID_d();
-                            ii2 = readMem(_PC++);
+                            ii2 = mem->readMem(_PC++);
                             {
                                 switch (ii2) {
                                     case 0:
-                                        _B = (ii2 = rlc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = rlc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 1:
-                                        _C = (ii2 = rlc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = rlc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 2:
-                                        _D = (ii2 = rlc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = rlc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 3:
-                                        _E = (ii2 = rlc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = rlc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 4:
-                                        _H = (ii2 = rlc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = rlc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 5:
-                                        _L = (ii2 = rlc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = rlc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 6:
-                                        writeMem(ii, rlc(readMem(ii)));
+                                        mem->writeMem(ii, rlc(mem->readMem(ii)));
                                         break;
                                     case 7:
-                                        _A = (ii2 = rlc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = rlc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 8:
-                                        _B = (ii2 = rrc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = rrc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 9:
-                                        _C = (ii2 = rrc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = rrc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 10:
-                                        _D = (ii2 = rrc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = rrc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 11:
-                                        _E = (ii2 = rrc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = rrc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 12:
-                                        _H = (ii2 = rrc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = rrc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 13:
-                                        _L = (ii2 = rrc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = rrc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 14:
-                                        writeMem(ii, rrc(readMem(ii)));
+                                        mem->writeMem(ii, rrc(mem->readMem(ii)));
                                         break;
                                     case 15:
-                                        _A = (ii2 = rrc(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = rrc(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 16:
-                                        _B = (ii2 = rl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = rl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 17:
-                                        _C = (ii2 = rl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = rl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 18:
-                                        _D = (ii2 = rl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = rl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 19:
-                                        _E = (ii2 = rl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = rl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 20:
-                                        _H = (ii2 = rl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = rl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 21:
-                                        _L = (ii2 = rl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = rl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 22:
-                                        writeMem(ii, rl(readMem(ii)));
+                                        mem->writeMem(ii, rl(mem->readMem(ii)));
                                         break;
                                     case 23:
-                                        _A = (ii2 = rl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = rl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 24:
-                                        _B = (ii2 = rr(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = rr(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 25:
-                                        _C = (ii2 = rr(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = rr(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 26:
-                                        _D = (ii2 = rr(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = rr(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 27:
-                                        _E = (ii2 = rr(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = rr(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 28:
-                                        _H = (ii2 = rr(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = rr(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 29:
-                                        _L = (ii2 = rr(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = rr(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 30:
-                                        writeMem(ii, rr(readMem(ii)));
+                                        mem->writeMem(ii, rr(mem->readMem(ii)));
                                         break;
                                     case 31:
-                                        _A = (ii2 = rr(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = rr(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 32:
-                                        _B = (ii2 = sla(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = sla(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 33:
-                                        _C = (ii2 = sla(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = sla(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 34:
-                                        _D = (ii2 = sla(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = sla(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 35:
-                                        _E = (ii2 = sla(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = sla(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 36:
-                                        _H = (ii2 = sla(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = sla(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 37:
-                                        _L = (ii2 = sla(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = sla(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 38:
-                                        writeMem(ii, sla(readMem(ii)));
+                                        mem->writeMem(ii, sla(mem->readMem(ii)));
                                         break;
                                     case 39:
-                                        _A = (ii2 = sla(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = sla(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 40:
-                                        _B = (ii2 = sra(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = sra(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 41:
-                                        _C = (ii2 = sra(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = sra(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 42:
-                                        _D = (ii2 = sra(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = sra(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 43:
-                                        _E = (ii2 = sra(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = sra(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 44:
-                                        _H = (ii2 = sra(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = sra(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 45:
-                                        _L = (ii2 = sra(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = sra(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 46:
-                                        writeMem(ii, sra(readMem(ii)));
+                                        mem->writeMem(ii, sra(mem->readMem(ii)));
                                         break;
                                     case 47:
-                                        _A = (ii2 = sra(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = sra(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 48:
-                                        _B = (ii2 = sls(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = sls(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 49:
-                                        _C = (ii2 = sls(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = sls(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 50:
-                                        _D = (ii2 = sls(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = sls(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 51:
-                                        _E = (ii2 = sls(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = sls(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 52:
-                                        _H = (ii2 = sls(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = sls(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 53:
-                                        _L = (ii2 = sls(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = sls(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 54:
-                                        writeMem(ii, sls(readMem(ii)));
+                                        mem->writeMem(ii, sls(mem->readMem(ii)));
                                         break;
                                     case 55:
-                                        _A = (ii2 = sls(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = sls(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 56:
-                                        _B = (ii2 = srl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = srl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 57:
-                                        _C = (ii2 = srl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = srl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 58:
-                                        _D = (ii2 = srl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = srl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 59:
-                                        _E = (ii2 = srl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = srl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 60:
-                                        _H = (ii2 = srl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = srl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 61:
-                                        _L = (ii2 = srl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = srl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 62:
-                                        writeMem(ii, srl(readMem(ii)));
+                                        mem->writeMem(ii, srl(mem->readMem(ii)));
                                         break;
                                     case 63:
-                                        _A = (ii2 = srl(readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = srl(mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 64:
                                     case 65:
@@ -3276,7 +3251,7 @@ void z80::run()
                                     case 69:
                                     case 70:
                                     case 71:
-                                        bit(1, readMem(ii));
+                                        bit(1, mem->readMem(ii));
                                         break;
                                     case 72:
                                     case 73:
@@ -3286,7 +3261,7 @@ void z80::run()
                                     case 77:
                                     case 78:
                                     case 79:
-                                        bit(2, readMem(ii));
+                                        bit(2, mem->readMem(ii));
                                         break;
                                     case 80:
                                     case 81:
@@ -3296,7 +3271,7 @@ void z80::run()
                                     case 85:
                                     case 86:
                                     case 87:
-                                        bit(4, readMem(ii));
+                                        bit(4, mem->readMem(ii));
                                         break;
                                     case 88:
                                     case 89:
@@ -3306,7 +3281,7 @@ void z80::run()
                                     case 93:
                                     case 94:
                                     case 95:
-                                        bit(8, readMem(ii));
+                                        bit(8, mem->readMem(ii));
                                         break;
                                     case 96:
                                     case 97:
@@ -3316,7 +3291,7 @@ void z80::run()
                                     case 101:
                                     case 102:
                                     case 103:
-                                        bit(16, readMem(ii));
+                                        bit(16, mem->readMem(ii));
                                         break;
                                     case 104:
                                     case 105:
@@ -3326,7 +3301,7 @@ void z80::run()
                                     case 109:
                                     case 110:
                                     case 111:
-                                        bit(32, readMem(ii));
+                                        bit(32, mem->readMem(ii));
                                         break;
                                     case 112:
                                     case 113:
@@ -3336,7 +3311,7 @@ void z80::run()
                                     case 117:
                                     case 118:
                                     case 119:
-                                        bit(64, readMem(ii));
+                                        bit(64, mem->readMem(ii));
                                         break;
                                     case 120:
                                     case 121:
@@ -3346,503 +3321,503 @@ void z80::run()
                                     case 125:
                                     case 126:
                                     case 127:
-                                        bit(128, readMem(ii));
+                                        bit(128, mem->readMem(ii));
                                         break;
                                     case 128:
-                                        _B = (ii2 = res(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = res(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 129:
-                                        _C = (ii2 = res(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = res(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 130:
-                                        _D = (ii2 = res(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = res(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 131:
-                                        _E = (ii2 = res(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = res(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 132:
-                                        _H = (ii2 = res(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = res(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 133:
-                                        _L = (ii2 = res(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = res(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 134:
-                                        writeMem(ii, res(1, readMem(ii)));
+                                        mem->writeMem(ii, res(1, mem->readMem(ii)));
                                         break;
                                     case 135:
-                                        _A = (ii2 = res(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = res(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 136:
-                                        _B = (ii2 = res(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = res(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 137:
-                                        _C = (ii2 = res(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = res(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 138:
-                                        _D = (ii2 = res(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = res(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 139:
-                                        _E = (ii2 = res(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = res(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 140:
-                                        _H = (ii2 = res(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = res(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 141:
-                                        _L = (ii2 = res(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = res(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 142:
-                                        writeMem(ii, res(2, readMem(ii)));
+                                        mem->writeMem(ii, res(2, mem->readMem(ii)));
                                         break;
                                     case 143:
-                                        _A = (ii2 = res(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = res(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 144:
-                                        _B = (ii2 = res(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = res(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 145:
-                                        _C = (ii2 = res(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = res(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 146:
-                                        _D = (ii2 = res(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = res(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 147:
-                                        _E = (ii2 = res(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = res(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 148:
-                                        _H = (ii2 = res(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = res(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 149:
-                                        _L = (ii2 = res(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = res(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 150:
-                                        writeMem(ii, res(4, readMem(ii)));
+                                        mem->writeMem(ii, res(4, mem->readMem(ii)));
                                         break;
                                     case 151:
-                                        _A = (ii2 = res(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = res(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 152:
-                                        _B = (ii2 = res(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = res(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 153:
-                                        _C = (ii2 = res(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = res(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 154:
-                                        _D = (ii2 = res(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = res(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 155:
-                                        _E = (ii2 = res(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = res(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 156:
-                                        _H = (ii2 = res(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = res(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 157:
-                                        _L = (ii2 = res(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = res(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 158:
-                                        writeMem(ii, res(8, readMem(ii)));
+                                        mem->writeMem(ii, res(8, mem->readMem(ii)));
                                         break;
                                     case 159:
-                                        _A = (ii2 = res(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = res(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 160:
-                                        _B = (ii2 = res(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = res(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 161:
-                                        _C = (ii2 = res(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = res(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 162:
-                                        _D = (ii2 = res(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = res(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 163:
-                                        _E = (ii2 = res(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = res(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 164:
-                                        _H = (ii2 = res(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = res(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 165:
-                                        _L = (ii2 = res(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = res(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 166:
-                                        writeMem(ii, res(16, readMem(ii)));
+                                        mem->writeMem(ii, res(16, mem->readMem(ii)));
                                         break;
                                     case 167:
-                                        _A = (ii2 = res(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = res(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 168:
-                                        _B = (ii2 = res(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = res(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 169:
-                                        _C = (ii2 = res(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = res(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 170:
-                                        _D = (ii2 = res(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = res(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 171:
-                                        _E = (ii2 = res(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = res(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 172:
-                                        _H = (ii2 = res(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = res(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 173:
-                                        _L = (ii2 = res(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = res(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 174:
-                                        writeMem(ii, res(32, readMem(ii)));
+                                        mem->writeMem(ii, res(32, mem->readMem(ii)));
                                         break;
                                     case 175:
-                                        _A = (ii2 = res(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = res(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 176:
-                                        _B = (ii2 = res(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = res(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 177:
-                                        _C = (ii2 = res(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = res(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 178:
-                                        _D = (ii2 = res(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = res(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 179:
-                                        _E = (ii2 = res(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = res(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 180:
-                                        _H = (ii2 = res(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = res(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 181:
-                                        _L = (ii2 = res(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = res(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 182:
-                                        writeMem(ii, res(64, readMem(ii)));
+                                        mem->writeMem(ii, res(64, mem->readMem(ii)));
                                         break;
                                     case 183:
-                                        _A = (ii2 = res(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = res(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 184:
-                                        _B = (ii2 = res(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = res(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 185:
-                                        _C = (ii2 = res(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = res(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 186:
-                                        _D = (ii2 = res(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = res(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 187:
-                                        _E = (ii2 = res(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = res(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 188:
-                                        _H = (ii2 = res(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = res(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 189:
-                                        _L = (ii2 = res(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = res(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 190:
-                                        writeMem(ii, res(128, readMem(ii)));
+                                        mem->writeMem(ii, res(128, mem->readMem(ii)));
                                         break;
                                     case 191:
-                                        _A = (ii2 = res(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = res(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 192:
-                                        _B = (ii2 = set(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = set(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 193:
-                                        _C = (ii2 = set(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = set(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 194:
-                                        _D = (ii2 = set(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = set(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 195:
-                                        _E = (ii2 = set(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = set(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 196:
-                                        _H = (ii2 = set(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = set(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 197:
-                                        _L = (ii2 = set(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = set(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 198:
-                                        writeMem(ii, set(1, readMem(ii)));
+                                        mem->writeMem(ii, set(1, mem->readMem(ii)));
                                         break;
                                     case 199:
-                                        _A = (ii2 = set(1, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = set(1, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 200:
-                                        _B = (ii2 = set(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = set(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 201:
-                                        _C = (ii2 = set(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = set(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 202:
-                                        _D = (ii2 = set(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = set(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 203:
-                                        _E = (ii2 = set(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = set(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 204:
-                                        _H = (ii2 = set(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = set(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 205:
-                                        _L = (ii2 = set(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = set(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 206:
-                                        writeMem(ii, set(2, readMem(ii)));
+                                        mem->writeMem(ii, set(2, mem->readMem(ii)));
                                         break;
                                     case 207:
-                                        _A = (ii2 = set(2, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = set(2, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 208:
-                                        _B = (ii2 = set(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = set(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 209:
-                                        _C = (ii2 = set(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = set(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 210:
-                                        _D = (ii2 = set(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = set(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 211:
-                                        _E = (ii2 = set(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = set(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 212:
-                                        _H = (ii2 = set(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = set(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 213:
-                                        _L = (ii2 = set(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = set(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 214:
-                                        writeMem(ii, set(4, readMem(ii)));
+                                        mem->writeMem(ii, set(4, mem->readMem(ii)));
                                         break;
                                     case 215:
-                                        _A = (ii2 = set(4, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = set(4, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 216:
-                                        _B = (ii2 = set(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = set(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 217:
-                                        _C = (ii2 = set(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = set(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 218:
-                                        _D = (ii2 = set(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = set(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 219:
-                                        _E = (ii2 = set(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = set(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 220:
-                                        _H = (ii2 = set(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = set(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 221:
-                                        _L = (ii2 = set(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = set(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 222:
-                                        writeMem(ii, set(8, readMem(ii)));
+                                        mem->writeMem(ii, set(8, mem->readMem(ii)));
                                         break;
                                     case 223:
-                                        _A = (ii2 = set(8, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = set(8, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 224:
-                                        _B = (ii2 = set(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = set(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 225:
-                                        _C = (ii2 = set(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = set(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 226:
-                                        _D = (ii2 = set(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = set(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 227:
-                                        _E = (ii2 = set(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = set(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 228:
-                                        _H = (ii2 = set(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = set(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 229:
-                                        _L = (ii2 = set(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = set(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 230:
-                                        writeMem(ii, set(16, readMem(ii)));
+                                        mem->writeMem(ii, set(16, mem->readMem(ii)));
                                         break;
                                     case 231:
-                                        _A = (ii2 = set(16, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = set(16, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 232:
-                                        _B = (ii2 = set(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = set(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 233:
-                                        _C = (ii2 = set(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = set(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 234:
-                                        _D = (ii2 = set(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = set(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 235:
-                                        _E = (ii2 = set(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = set(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 236:
-                                        _H = (ii2 = set(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = set(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 237:
-                                        _L = (ii2 = set(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = set(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 238:
-                                        writeMem(ii, set(32, readMem(ii)));
+                                        mem->writeMem(ii, set(32, mem->readMem(ii)));
                                         break;
                                     case 239:
-                                        _A = (ii2 = set(32, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = set(32, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 240:
-                                        _B = (ii2 = set(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = set(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 241:
-                                        _C = (ii2 = set(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = set(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 242:
-                                        _D = (ii2 = set(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = set(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 243:
-                                        _E = (ii2 = set(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = set(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 244:
-                                        _H = (ii2 = set(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = set(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 245:
-                                        _L = (ii2 = set(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = set(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 246:
-                                        writeMem(ii, set(64, readMem(ii)));
+                                        mem->writeMem(ii, set(64, mem->readMem(ii)));
                                         break;
                                     case 247:
-                                        _A = (ii2 = set(64, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = set(64, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 248:
-                                        _B = (ii2 = set(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _B = (ii2 = set(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 249:
-                                        _C = (ii2 = set(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _C = (ii2 = set(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 250:
-                                        _D = (ii2 = set(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _D = (ii2 = set(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 251:
-                                        _E = (ii2 = set(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _E = (ii2 = set(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 252:
-                                        _H = (ii2 = set(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _H = (ii2 = set(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 253:
-                                        _L = (ii2 = set(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _L = (ii2 = set(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                     case 254:
-                                        writeMem(ii, set(128, readMem(ii)));
+                                        mem->writeMem(ii, set(128, mem->readMem(ii)));
                                         break;
                                     case 255:
-                                        _A = (ii2 = set(128, readMem(ii)));
-                                        writeMem(ii, ii2);
+                                        _A = (ii2 = set(128, mem->readMem(ii)));
+                                        mem->writeMem(ii, ii2);
                                         break;
                                 }
                             }
@@ -3852,8 +3827,8 @@ void z80::run()
                         case 227: {
                             ii  = _ID;
                             ii2 = _SP;
-                            _ID = (readMemWord(ii2));
-                            writeMemWord(ii2, ii);
+                            _ID = (mem->readMemWord(ii2));
+                            mem->writeMemWord(ii2, ii);
                             i += 23;
                         }
                             goto EXEC_ID;
@@ -3884,7 +3859,7 @@ void z80::run()
                 int ii2;
                 int ii3;
                 _R += (1);
-                switch (readMem(_PC++)) {
+                switch (mem->readMem(_PC++)) {
                     case 0:
                     case 1:
                     case 2:
@@ -4097,35 +4072,35 @@ void z80::run()
                         i += 15;
                         goto EXEC_ED;
                     case 67:
-                        writeMemWord(readMemWord((_PC = _PC + 2) - 2), BC());
+                        mem->writeMemWord(mem->readMemWord((_PC = _PC + 2) - 2), BC());
                         i += 20;
                         goto EXEC_ED;
                     case 75:
-                        setBC(readMemWord(readMemWord((_PC = _PC + 2) - 2)));
+                        setBC(mem->readMemWord(mem->readMemWord((_PC = _PC + 2) - 2)));
                         i += 20;
                         goto EXEC_ED;
                     case 83:
-                        writeMemWord(readMemWord((_PC = _PC + 2) - 2), DE());
+                        mem->writeMemWord(mem->readMemWord((_PC = _PC + 2) - 2), DE());
                         i += 20;
                         goto EXEC_ED;
                     case 91:
-                        setDE(readMemWord(readMemWord((_PC = _PC + 2) - 2)));
+                        setDE(mem->readMemWord(mem->readMemWord((_PC = _PC + 2) - 2)));
                         i += 20;
                         goto EXEC_ED;
                     case 99:
-                        writeMemWord(readMemWord((_PC = _PC + 2) - 2), HL());
+                        mem->writeMemWord(mem->readMemWord((_PC = _PC + 2) - 2), HL());
                         i += 20;
                         goto EXEC_ED;
                     case 107:
-                        setHL(readMemWord(readMemWord((_PC = _PC + 2) - 2)));
+                        setHL(mem->readMemWord(mem->readMemWord((_PC = _PC + 2) - 2)));
                         i += 20;
                         goto EXEC_ED;
                     case 115:
-                        writeMemWord(readMemWord((_PC = _PC + 2) - 2), _SP);
+                        mem->writeMemWord(mem->readMemWord((_PC = _PC + 2) - 2), _SP);
                         i += 20;
                         goto EXEC_ED;
                     case 123:
-                        _SP = (readMemWord(readMemWord((_PC = _PC + 2) - 2)));
+                        _SP = (mem->readMemWord(mem->readMemWord((_PC = _PC + 2) - 2)));
                         i += 20;
                         goto EXEC_ED;
                     case 68:
@@ -4211,11 +4186,11 @@ void z80::run()
                         goto EXEC_ED;
                     case 103: {
                         int ii    = _A;
-                        int i_76_ = readMem(HL());
+                        int i_76_ = mem->readMem(HL());
                         int i_77_ = i_76_;
                         i_76_     = i_76_ >> 4 | ii << 4;
                         ii        = ii & 0xf0 | i_77_ & 0xf;
-                        writeMem(HL(), i_76_);
+                        mem->writeMem(HL(), i_76_);
                         fS  = ((ii & 0x80) != 0);
                         f3  = ((ii & 0x8) != 0);
                         f5  = ((ii & 0x20) != 0);
@@ -4229,11 +4204,11 @@ void z80::run()
                         goto EXEC_ED;
                     case 111: {
                         int ii    = _A;
-                        int i_74_ = readMem(HL());
+                        int i_74_ = mem->readMem(HL());
                         int i_75_ = i_74_;
                         i_74_     = i_74_ << 4 | ii & 0xf;
                         ii        = ii & 0xf0 | i_75_ >> 4;
-                        writeMem(HL(), i_74_ & 0xff);
+                        mem->writeMem(HL(), i_74_ & 0xff);
                         fS  = ((ii & 0x80) != 0);
                         f3  = ((ii & 0x8) != 0);
                         f5  = ((ii & 0x20) != 0);
@@ -4246,7 +4221,7 @@ void z80::run()
                     }
                         goto EXEC_ED;
                     case 160:
-                        writeMem(DE(), readMem(HL()));
+                        mem->writeMem(DE(), mem->readMem(HL()));
                         setDE((_D << 8 | _E) + 1 & 0xffff);
                         setHL((_H << 8 | _L) + 1 & 0xffff);
                         setBC((_B << 8 | _C) - 1 & 0xffff);
@@ -4257,7 +4232,7 @@ void z80::run()
                         goto EXEC_ED;
                     case 161: {
                         ii2 = fC;
-                        cp_a(readMem(HL()));
+                        cp_a(mem->readMem(HL()));
                         setHL((_H << 8 | _L) + 1 & 0xffff);
                         setBC((_B << 8 | _C) - 1 & 0xffff);
                         fPV = (BC() != 0);
@@ -4266,19 +4241,19 @@ void z80::run()
                     }
                         goto EXEC_ED;
                     case 162:
-                        writeMem(HL(), inb(_C));
+                        mem->writeMem(HL(), inb(_C));
                         _B = (dec8(_B));
                         setHL((_H << 8 | _L) + 1 & 0xffff);
                         i += 16;
                         goto EXEC_ED;
                     case 163:
                         _B = (dec8(_B));
-                        outb(_C, readMem(HL()));
+                        outb(_C, mem->readMem(HL()));
                         setHL((_H << 8 | _L) + 1 & 0xffff);
                         i += 16;
                         goto EXEC_ED;
                     case 168:
-                        writeMem(DE(), readMem(HL()));
+                        mem->writeMem(DE(), mem->readMem(HL()));
                         setDE((_D << 8 | _E) - 1 & 0xffff);
                         setHL((_H << 8 | _L) - 1 & 0xffff);
                         setBC((_B << 8 | _C) - 1 & 0xffff);
@@ -4289,7 +4264,7 @@ void z80::run()
                         goto EXEC_ED;
                     case 169: {
                         // var bool = fC;
-                        cp_a(readMem(HL()));
+                        cp_a(mem->readMem(HL()));
                         setHL((_H << 8 | _L) - 1 & 0xffff);
                         setBC((_B << 8 | _C) - 1 & 0xffff);
                         fPV = (BC() != 0);
@@ -4297,20 +4272,20 @@ void z80::run()
                     }
                         goto EXEC_ED;
                     case 170:
-                        writeMem(HL(), inb(_C));
+                        mem->writeMem(HL(), inb(_C));
                         _B = (dec8(_B));
                         setHL((_H << 8 | _L) - 1 & 0xffff);
                         i += 16;
                         goto EXEC_ED;
                     case 171:
                         _B = (dec8(_B));
-                        outb(_C, readMem(HL()));
+                        outb(_C, mem->readMem(HL()));
                         setHL((_H << 8 | _L) - 1 & 0xffff);
                         i += 16;
                         goto EXEC_ED;
                     case 176: {
                         // var bool = false;
-                        writeMem(DE(), readMem(HL()));
+                        mem->writeMem(DE(), mem->readMem(HL()));
                         setHL((_H << 8 | _L) + 1 & 0xffff);
                         setDE((_D << 8 | _E) + 1 & 0xffff);
                         setBC((_B << 8 | _C) - 1 & 0xffff);
@@ -4332,7 +4307,7 @@ void z80::run()
                         goto EXEC_ED;
                     case 177: {
                         ii2 = fC;
-                        cp_a(readMem(HL()));
+                        cp_a(mem->readMem(HL()));
                         setHL((_H << 8 | _L) + 1 & 0xffff);
                         setBC((_B << 8 | _C) - 1 & 0xffff);
                         ii3 = BC() != 0;
@@ -4349,7 +4324,7 @@ void z80::run()
                     case 178: {
                         // var bool = false;
                         ii2 = 0;
-                        writeMem(HL(), inb(_C));
+                        mem->writeMem(HL(), inb(_C));
                         _B = (ii2 = dec8(_B));
                         setHL((_H << 8 | _L) + 1 & 0xffff);
                         if (ii2 != 0) {
@@ -4364,7 +4339,7 @@ void z80::run()
                         // var bool = false;
                         ii2 = 0;
                         _B  = (ii2 = dec8(_B));
-                        outb(_C, readMem(HL()));
+                        outb(_C, mem->readMem(HL()));
                         setHL((_H << 8 | _L) + 1 & 0xffff);
                         if (ii2 != 0) {
                             _PC = (_PC - 2 & 0xffff);
@@ -4378,7 +4353,7 @@ void z80::run()
                         // var bool = false;
                         ii2 = 21;
                         _R += (4);
-                        writeMem(DE(), readMem(HL()));
+                        mem->writeMem(DE(), mem->readMem(HL()));
                         setDE((_D << 8 | _E) - 1 & 0xffff);
                         setHL((_H << 8 | _L) - 1 & 0xffff);
                         setBC((_B << 8 | _C) - 1 & 0xffff);
@@ -4398,7 +4373,7 @@ void z80::run()
                         goto EXEC_ED;
                     case 185: {
                         ii2 = fC;
-                        cp_a(readMem(HL()));
+                        cp_a(mem->readMem(HL()));
                         setHL((_H << 8 | _L) - 1 & 0xffff);
                         setBC((_B << 8 | _C) - 1 & 0xffff);
                         ii3 = BC() != 0;
@@ -4414,7 +4389,7 @@ void z80::run()
                         goto EXEC_ED;
                     case 186: {
                         ii2 = 0;
-                        writeMem(HL(), inb(BC() & 0xff));
+                        mem->writeMem(HL(), inb(BC() & 0xff));
                         _B = (ii2 = dec8(_B));
                         setHL((_H << 8 | _L) - 1 & 0xffff);
                         if (ii2 != 0) {
@@ -4428,7 +4403,7 @@ void z80::run()
                     case 187: {
                         ii2 = 0;
                         _B  = (ii2 = dec8(_B));
-                        outb(_C, readMem(HL()));
+                        outb(_C, mem->readMem(HL()));
                         setHL((_H << 8 | _L) - 1 & 0xffff);
                         if (ii2 != 0) {
                             _PC = (_PC - 2 & 0xffff);
@@ -4451,35 +4426,35 @@ void z80::run()
                 i += 11;
             } break;
             case 198:
-                add_a(readMem(_PC++));
+                add_a(mem->readMem(_PC++));
                 i += 7;
                 break;
             case 206:
-                adc_a(readMem(_PC++));
+                adc_a(mem->readMem(_PC++));
                 i += 7;
                 break;
             case 214:
-                sub_a(readMem(_PC++));
+                sub_a(mem->readMem(_PC++));
                 i += 7;
                 break;
             case 222:
-                sbc_a(readMem(_PC++));
+                sbc_a(mem->readMem(_PC++));
                 i += 7;
                 break;
             case 230:
-                and_a(readMem(_PC++));
+                and_a(mem->readMem(_PC++));
                 i += 7;
                 break;
             case 238:
-                xor_a(readMem(_PC++));
+                xor_a(mem->readMem(_PC++));
                 i += 7;
                 break;
             case 246:
-                or_a(readMem(_PC++));
+                or_a(mem->readMem(_PC++));
                 i += 7;
                 break;
             case 254:
-                cp_a(readMem(_PC++));
+                cp_a(mem->readMem(_PC++));
                 i += 7;
                 break;
             case 199:
@@ -4522,183 +4497,6 @@ void z80::run()
                 _PC = (56);
                 i += 11;
         }
-    }
-}
-
-int z80::readMem(int address)
-{
-    if (!megarom) {
-        return memReadMap[0x3 & (PPIPortA >> ((address & 0xc000) >> 13))][address];
-    } else {
-        if (((address & 0xc000) >> 14) == cartSlot && address <= 49151 && address >= 16384)
-            return rom[pagMegaRom[(address >> 13) - 2]][address % 8192];
-        else
-            return memReadMap[0x3 & (PPIPortA >> ((address & 0xc000) >> 13))][address];
-    }
-    return 0;
-}
-int z80::readMemWord(int address)
-{
-    if (!megarom) {
-        return memReadMap[0x3 & (PPIPortA >> (((address + 1) & 0xc000) >> 13))][address + 1] << 8 |
-               memReadMap[0x3 & (PPIPortA >> ((address & 0xc000) >> 13))][address];
-    } else {
-        if (((address & 0xc000) >> 14) == cartSlot && address <= 49151 && address >= 16384)
-            return rom[pagMegaRom[((address + 1) >> 13) - 2]][(address + 1) % 8192] << 8 |
-                   rom[pagMegaRom[(address >> 13) - 2]][address % 8192];
-        else
-            return memReadMap[0x3 & (PPIPortA >> (((address + 1) & 0xc000) >> 13))][address + 1] << 8 |
-                   memReadMap[0x3 & (PPIPortA >> ((address & 0xc000) >> 13))][address];
-    }
-}
-void z80::writeMem(int address, int value)
-{
-    int i = 0x3 & (PPIPortA >> ((address & 0xc000) >> 13));
-
-    if (podeEscrever[i])
-        memReadMap[i][address] = value & 0xff;
-    if (address == 65535)
-        memReadMap[i][65535] = 255;
-    if (!megarom)
-        return;
-
-    if (i == cartSlot) {
-        switch (tipoMegarom) {
-            case 0:
-                if (address == 16384 || address == 20480)
-                    pagMegaRom[0] = value & 0xff;
-                else if (address == 24576 || address == 28672)
-                    pagMegaRom[1] = value & 0xff;
-                else if (address == 32768 || address == 36864)
-                    pagMegaRom[2] = value & 0xff;
-                else if (address == 40960 || address == 45056)
-                    pagMegaRom[3] = value & 0xff;
-                break;
-            case 1:
-                if (address == 16384 || address == 20480) {
-                    pagMegaRom[0] = value & 0xff;
-                    pagMegaRom[1] = pagMegaRom[0] + 1;
-                } else if (address == 32768 || address == 36864) {
-                    pagMegaRom[2] = value & 0xff;
-                    pagMegaRom[3] = pagMegaRom[2] + 1;
-                }
-                break;
-            case 2:
-                if (address >= 24576 && address <= 26623)
-                    pagMegaRom[0] = value & 0xff;
-                else if (address >= 26624 && address <= 28671)
-                    pagMegaRom[1] = value & 0xff;
-                else if (address >= 28672 && address <= 30719)
-                    pagMegaRom[2] = value & 0xff;
-                else if (address >= 30720 && address <= 32767)
-                    pagMegaRom[3] = value & 0xff;
-                break;
-            case 3:
-                if (address >= 24576 && address <= 26623) {
-                    pagMegaRom[0] = value & 0xff;
-                    pagMegaRom[1] = pagMegaRom[0] + 1;
-                } else if (address >= 28672 && address <= 30719) {
-                    pagMegaRom[2] = value & 0xff;
-                    pagMegaRom[3] = pagMegaRom[2] + 1;
-                }
-                break;
-        }
-    }
-}
-void z80::writeMemWord(int address, int value)
-{
-    int i = 0x3 & (PPIPortA >> ((address & 0xc000) >> 13));
-    if (podeEscrever[i]) {
-        memReadMap[i][address] = value & 0xff;
-        if (++address < 65535)
-            memReadMap[i][address] = value >> 8;
-        if (address == 65535 || address == 65536)
-            memReadMap[i][65535] = 255;
-    }
-    if (!megarom)
-        return;
-
-    if (i == cartSlot) {
-        switch (tipoMegarom) {
-            case 0:
-                if (address == 16384 || address == 20480)
-                    pagMegaRom[0] = value & 0xff;
-                else if (address == 24576 || address == 28672)
-                    pagMegaRom[1] = value & 0xff;
-                else if (address == 32768 || address == 36864)
-                    pagMegaRom[2] = value & 0xff;
-                else if (address == 40960 || address == 45056)
-                    pagMegaRom[3] = value & 0xff;
-                else if (address == 24575 || address == 28671)
-                    pagMegaRom[1] = value & 0xff;
-                else if (address == 32767 || address == 36863)
-                    pagMegaRom[2] = value & 0xff;
-                else if (address == 40959 || address == 45055)
-                    pagMegaRom[3] = value & 0xff;
-                break;
-            case 1:
-                if (address == 16384 || address == 20480) {
-                    pagMegaRom[0] = value & 0xff;
-                    pagMegaRom[1] = pagMegaRom[0] + 1;
-                } else if (address == 32768 || address == 36864) {
-                    pagMegaRom[2] = value & 0xff;
-                    pagMegaRom[3] = pagMegaRom[2] + 1;
-                } else if (address == 16383 || address == 20479) {
-                    pagMegaRom[0] = value >> 8 & 0xff;
-                    pagMegaRom[1] = pagMegaRom[0] + 1;
-                } else if (address == 24575 || address == 28671) {
-                    pagMegaRom[0] = value & 0xff;
-                    pagMegaRom[1] = pagMegaRom[0] + 1;
-                    pagMegaRom[2] = value >> 8 & 0xff;
-                    pagMegaRom[3] = pagMegaRom[2] + 1;
-                }
-                break;
-            case 2:
-                if (address >= 24576 && address < 26623)
-                    pagMegaRom[0] = value & 0xff;
-                else if (address >= 26624 && address < 28671)
-                    pagMegaRom[1] = value & 0xff;
-                else if (address >= 28672 && address < 30719)
-                    pagMegaRom[2] = value & 0xff;
-                else if (address >= 30720 && address < 32767)
-                    pagMegaRom[3] = value & 0xff;
-                else if (address == 24575)
-                    pagMegaRom[0] = value >> 8 & 0xff;
-                else if (address == 26623) {
-                    pagMegaRom[0] = value & 0xff;
-                    pagMegaRom[1] = value >> 8 & 0xff;
-                } else if (address == 28671) {
-                    pagMegaRom[1] = value & 0xff;
-                    pagMegaRom[2] = value >> 8 & 0xff;
-                } else if (address == 30719) {
-                    pagMegaRom[2] = value & 0xff;
-                    pagMegaRom[3] = value >> 8 & 0xff;
-                } else if (address == 32767)
-                    pagMegaRom[3] = value & 0xff;
-                break;
-            case 3:
-                if (address >= 24576 && address <= 26623) {
-                    pagMegaRom[0] = value & 0xff;
-                    pagMegaRom[1] = pagMegaRom[0] + 1;
-                } else if (address >= 28672 && address <= 30719) {
-                    pagMegaRom[2] = value & 0xff;
-                    pagMegaRom[3] = pagMegaRom[2] + 1;
-                }
-                break;
-        }
-    }
-}
-void z80::preparaMemoriaMegarom(string str)
-{
-    if (0 < str.length()) {
-        if (str == "0")
-            tipoMegarom = 0;
-        else if (str == "1")
-            tipoMegarom = 1;
-        else if (str == "2")
-            tipoMegarom = 2;
-        else if (str == "3")
-            tipoMegarom = 3;
     }
 }
 void z80::setF(int i)
@@ -4904,7 +4702,7 @@ void z80::poppc()
 int z80::popw()
 {
     int i     = _SP;
-    int i_67_ = readMemWord(i++);
+    int i_67_ = mem->readMemWord(i++);
     _SP       = (++i & 0xffff);
     return i_67_;
 }
@@ -4916,9 +4714,8 @@ void z80::pushw(int i)
 {
     int i_70_ = _SP - 2 & 0xffff;
     _SP       = (i_70_);
-    writeMemWord(i_70_, i);
+    mem->writeMemWord(i_70_, i);
 }
-
 int z80::rlc(int i)
 {
     bool flg = (i & 0x80) != 0;
@@ -5082,11 +4879,11 @@ void z80::setIDL(int i)
 }
 int z80::ID_d()
 {
-    return _ID + bytef(readMem(_PC++)) & 0xffff;
+    return _ID + bytef(mem->readMem(_PC++)) & 0xffff;
 }
 int z80::nxtpcb()
 {
-    return readMem(_PC++);
+    return mem->readMem(_PC++);
 }
 int z80::in_bc()
 {
@@ -5146,7 +4943,7 @@ int z80::z80_interrupt()
             pushpc();
             setIFF1(false);
             setIFF2(false);
-            _PC = (readMemWord(_I << 8 | 0xff));
+            _PC = (mem->readMemWord(_I << 8 | 0xff));
             return 19;
         }
         default:
@@ -5159,13 +4956,13 @@ int z80::inb(int i)
         case 162:
             return msx->psg->lePortaDados();
         case 168:
-            return PPIPortA;
+            return mem->PPIPortA;
         case 169:
-            return msx->keyboard->state[PPIPortC & 0xf];
+            return msx->keyboard->state[mem->PPIPortC & 0xf];
         case 170:
-            return PPIPortC;
+            return mem->PPIPortC;
         case 171:
-            return PPIPortD;
+            return mem->PPIPortD;
         case 152: {
             int val = msx->vdp->lePortaDados();
             return val;
@@ -5185,7 +4982,7 @@ void z80::outb(int i, int i_19_)
 {
     switch (i) {
         case 142:
-            megarom = true;
+            mem->megarom = true;
             break;
         case 160:
             msx->psg->escrevePortaEndereco(i_19_);
@@ -5194,16 +4991,16 @@ void z80::outb(int i, int i_19_)
             msx->psg->escrevePortaDados(i_19_);
             break;
         case 168:
-            PPIPortA = i_19_;
+            mem->PPIPortA = i_19_;
             break;
         case 169:
             // PPIPortB = i_19_;
             break;
         case 170:
-            PPIPortC = i_19_;
+            mem->PPIPortC = i_19_;
             break;
         case 171:
-            PPIPortD = i_19_;
+            mem->PPIPortD = i_19_;
             break;
         case 152:
             msx->vdp->escrevePortaDados(i_19_);
