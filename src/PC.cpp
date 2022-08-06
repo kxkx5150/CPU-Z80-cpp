@@ -27,7 +27,7 @@ void PC::init()
 void PC::load()
 {
     mem->load(cbios_main_msx1_rom, 0, 0, 32768);
-    // mem->load(msx_game_rom, 2, 16384, 49152);
+    mem->load(msx_game_rom, 2, 16384, 49152);
 }
 void PC::start()
 {

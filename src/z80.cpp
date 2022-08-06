@@ -197,18 +197,15 @@ void z80::dump(int opcode, int i)
 }
 void z80::run()
 {
-    int i      = -(T_STATES_PERrINTERRUPT - z80_interrupt());
+    int ival   = -(T_STATES_PERrINTERRUPT - z80_interrupt());
+    int i      = 0;
     int i_2_   = 0;
     int i_3_   = 0;
     int opcode = 0;
 
-    while (i < 0) {
+    while ((ival + i) < 0) {
         rR += 1;
         opcode = mem->readMem(rPC++);
-
-        if (count == 263551) {
-            printf(" ");
-        }
         dump(opcode, i);
 
         switch (opcode) {
@@ -4511,7 +4508,7 @@ void z80::setF(int i)
     fC  = (i & 0x1) != 0;
 }
 int8_t z80::bytef(int i)
-{    // returns i between -128 to +127
+{
     return ((i & 0x80) != 0) ? i - 256 : i;
 }
 void z80::setBC(int i)
