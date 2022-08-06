@@ -1,5 +1,5 @@
-#ifndef _H_PC
-#define _H_PC
+#ifndef _HrPC
+#define _HrPC
 
 #include "mem.h"
 #include "z80.h"

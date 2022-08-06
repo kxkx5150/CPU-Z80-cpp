@@ -1,7 +1,7 @@
 #include <cstddef>
 #define SDL_MAIN_HANDLED
 
-#include "src/PC.h"
+#include "PC.h"
 #include <SDL2/SDL.h>
 #include <cstdio>
 #include <time.h>

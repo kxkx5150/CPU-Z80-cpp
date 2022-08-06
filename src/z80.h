@@ -6,7 +6,7 @@
 #include <string>
 #include "mem.h"
 
-const int T_STATES_PER_INTERRUPT = 59659;
+const int T_STATES_PERrINTERRUPT = 59659;
 
 class PC;
 class z80 {
@@ -16,38 +16,38 @@ class z80 {
 
     uint64_t count = 0;
 
-    int _A = 0;
-    int _B = 0;
-    int _C = 0;
-    int _D = 0;
-    int _E = 0;
-    int _H = 0;
-    int _L = 0;
+    int rA = 0;
+    int rB = 0;
+    int rC = 0;
+    int rD = 0;
+    int rE = 0;
+    int rH = 0;
+    int rL = 0;
 
-    int _AF_ = 0;
-    int _HL_ = 0;
-    int _BC_ = 0;
-    int _DE_ = 0;
-    int _IX  = 0;
-    int _IY  = 0;
-    int _ID  = 0;
-    int _SP  = 0;
-    int _PC  = 0;
-    int _I   = 0;
-    int _R   = 0;
-    int _R7  = 0;
-    int _IM  = 2;
+    int rAF = 0;
+    int rHL = 0;
+    int rBC = 0;
+    int rDE = 0;
+    int rIX = 0;
+    int rIY = 0;
+    int rID = 0;
+    int rSP = 0;
+    int rPC = 0;
+    int rI  = 0;
+    int rR  = 0;
+    int rR7 = 0;
+    int rIM = 2;
 
-    bool fS    = false;
-    bool fZ    = false;
-    bool f5    = false;
-    bool fH    = false;
-    bool f3    = false;
-    bool fPV   = false;
-    bool fN    = false;
-    bool fC    = false;
-    bool _IFF1 = true;
-    bool _IFF2 = true;
+    bool fS   = false;
+    bool fZ   = false;
+    bool f5   = false;
+    bool fH   = false;
+    bool f3   = false;
+    bool fPV  = false;
+    bool fN   = false;
+    bool fC   = false;
+    bool IFF1 = true;
+    bool IFF2 = true;
 
     int parity[256];
     int portos[256];
